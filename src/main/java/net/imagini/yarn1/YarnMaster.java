@@ -42,7 +42,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
      */
     public static void submitApplicationMaster(Configuration conf, Class<? extends YarnMaster> appClass, String[] args) throws Exception {
 
-        Logger log = LoggerFactory.getLogger(appClass);
+        Logger log = LoggerFactory.getLogger(YarnMaster.class);
         String queue = conf.get("master.queue");
         Priority masterPriority = Priority.newInstance(conf.getInt("master.priority", 0));
         boolean keepContainers = conf.getBoolean("master.keepContainers", false);
@@ -71,7 +71,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         for (String arg : args) {
             newArgs.add(arg);
         }
-        YarnContext containerSpec = new YarnContext(log, conf, appClass.getSimpleName(), YarnMaster.class, newArgs);
+        YarnContext containerSpec = new YarnContext(conf, appClass.getSimpleName(), YarnMaster.class, newArgs);
 
         ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
         appContext.setKeepContainersAcrossApplicationAttempts(keepContainers);
@@ -261,7 +261,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
                 }
                 if (selectedSpec != null) {
                     log.info("Assigned container " + container + " to " + selectedSpec.getMainClass().getSimpleName());
-                    YarnContext context = new YarnContext(log, conf, this.getClass().getSimpleName(),
+                    YarnContext context = new YarnContext(conf, this.getClass().getSimpleName(),
                             selectedSpec.getMainClass(), args);
                     nmClient.startContainer(container, context.getContainer(false));
 

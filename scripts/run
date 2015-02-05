@@ -1,2 +1,2 @@
 #!/bin/bash
-yarn jar target/yarn1-exec-0.0.1-SNAPSHOT-example.jar "$@"
+yarn jar target/yarn1-example.jar "$@"

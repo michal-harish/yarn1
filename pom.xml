@@ -6,8 +6,10 @@
     <version>0.0.1-SNAPSHOT</version>
     <properties>
         <hadoop.version>2.3.0-cdh5.0.3</hadoop.version>
+        <zookeeper.version>3.4.5</zookeeper.version>
     </properties>
     <dependencies>
+        <!--  hadoop yarn provided dependencies -->
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-yarn-client</artifactId>
@@ -25,6 +27,13 @@
             <artifactId>hadoop-hdfs</artifactId>
             <version>${hadoop.version}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <!--  example bundled dependency -->
+        <dependency>
+            <groupId>net.jpountz.lz4</groupId>
+            <artifactId>lz4</artifactId>
+            <version>1.1.2</version>
         </dependency>
     </dependencies>
 
@@ -52,6 +61,24 @@
                 </configuration>
             </plugin>
             <plugin>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>2.10</version>
+                <executions>
+                    <execution>
+                        <id>extract</id>
+                        <phase>process-sources</phase>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>target/classes</outputDirectory>
+                            <excludeTransitive>true</excludeTransitive>
+                            <excludeScope>provided</excludeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>2.4</version>
                 <executions>
@@ -63,7 +90,7 @@
                         <configuration>
                             <attach>false</attach>
                             <appendAssemblyId>false</appendAssemblyId>
-                            <finalName>${project.name}-${project.version}-example</finalName>
+                            <finalName>yarn1-example</finalName>
                             <archive>
                                 <manifest>
                                     <mainClass>net.imagini.yarn1.example.HelloYarn1</mainClass>
@@ -76,23 +103,6 @@
                     </execution>
                 </executions>
             </plugin>
-<!--             <plugin> -->
-<!--                 <artifactId>maven-dependency-plugin</artifactId> -->
-<!--                 <version>2.10</version> -->
-<!--                 <executions> -->
-<!--                     <execution> -->
-<!--                         <id>extract</id> -->
-<!--                         <phase>process-sources</phase> -->
-<!--                         <goals> -->
-<!--                             <goal>unpack-dependencies</goal> -->
-<!--                         </goals> -->
-<!--                         <configuration> -->
-<!--                             <outputDirectory>target/classes</outputDirectory> -->
-<!--                             <excludeTransitive>true</excludeTransitive> -->
-<!--                         </configuration> -->
-<!--                     </execution> -->
-<!--                 </executions> -->
-<!--             </plugin> -->
         </plugins>
     </build>
 </project>
