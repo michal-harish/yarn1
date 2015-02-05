@@ -1,0 +1,2 @@
+#!/bin/bash
+yarn jar target/hello-yarn-0.0.1-SNAPSHOT-example.jar "$@"

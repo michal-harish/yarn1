@@ -1,2 +1,28 @@
-# yarn1
 Simple Yarn Executor
+====================
+
+- This is a "Hello Yarn" executuor and at the moment serves as a template
+- The idea for future is to have the generic part (net.imagini.yarn1) built as an artefact without bundling the big hadoop jars inside 
+- Branches for different versions of Hadoop/Yarn will come, this one is based on 2.3.0-cdh5.0.3
+
+
+RUNING FROM COMMAND LINE
+------------------------
+mvn package
+./scripts/run
+
+
+RUNNING FROM IDE
+----------------
+
+
+
+TODO
+----
+# built in synchronization using environment-provided zookeeper for things like barrier behaviours, i.e. drift needs all containers running first
+
+
+FEATURES
+--------
+
+ 
