@@ -8,7 +8,7 @@ SIMPLE YARN EXECUTOR
 
 FEATURES
 --------
-- quick and easy way access to Yarn resources by extending YarnMaster class 
+- quick and easy access to Yarn resources by extending YarnMaster class 
 - allows running custom Yarn distributed application directly from IDE or as packaged thin jar
 
 
