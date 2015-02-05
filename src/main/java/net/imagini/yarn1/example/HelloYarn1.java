@@ -26,9 +26,9 @@ public class HelloYarn1 extends YarnMaster {
     }
 
     public void allocateContainers() throws Exception {
-        submitContainer(0, HelloYarn1WorkerA.class, 1024, 1);
-        submitContainer(0, HelloYarn1WorkerB.class, 2048, 4);
-        submitContainer(0, HelloYarn1WorkerA.class, 1024, 1);
+        requestContainer(0, HelloYarn1WorkerA.class, 1024, 1);
+        requestContainer(0, HelloYarn1WorkerB.class, 2048, 4);
+        requestContainer(0, HelloYarn1WorkerA.class, 1024, 1);
     }
 
 }

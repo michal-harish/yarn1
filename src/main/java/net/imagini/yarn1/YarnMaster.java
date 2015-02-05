@@ -169,10 +169,19 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     final private AtomicBoolean killed = new AtomicBoolean(false);
 
     public void allocateContainers() throws Exception {
-        // to be implemented by application
+        /**
+         * To be implemented by application...
+         * 
+         * For example to request 16 containers, with priority 1, 4 cores and 1024Mb of memory:
+         * 
+         *  for(int i=0; i< 16; i++) {
+         *      requestContainer(1, MyAppWorker.class, 1024, 4);
+         *  }
+         *
+         */
     }
 
-    final protected void submitContainer(int priority, Class<?> mainClass, int memoryMb, int vCores) {
+    final protected void requestContainer(int priority, Class<?> mainClass, int memoryMb, int vCores) {
         containerRequests.add(new YarnSpec(Resource.newInstance(memoryMb, vCores), Priority.newInstance(priority), mainClass));
     }
 
