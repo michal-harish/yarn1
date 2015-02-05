@@ -2,7 +2,7 @@ SIMPLE YARN EXECUTOR
 ====================
 
 - This is a "Hello Yarn" executuor and at the moment serves as a template
-- The idea for future is to have the generic part (net.imagini.yarn1) built as an artefact without bundling the big hadoop jars inside 
+- The idea for future is to have the generic part (net.imagini.yarn1) built as an artefact and have it a pure dependency
 - Branches for different versions of Hadoop/Yarn will come, this one is based on 2.3.0-cdh5.0.3
 
 
