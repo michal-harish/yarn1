@@ -20,7 +20,8 @@ yarn jar target/yarn1-example.jar
 
 RUNNING FROM IDE
 ----------------
-run HelloYarn1 as Java Application - this will work until you add some non-default hadoop classpath dependencies
+run HelloYarn1 as Java Application 
+# if your IDE doesn't support maven dependency plugin then run `mvn process sources` each time you change dependencies 
 
 
 TODO
