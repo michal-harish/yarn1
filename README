@@ -14,15 +14,17 @@ mvn package
 
 RUNNING FROM IDE
 ----------------
-
+run HelloYarn1 as Java Application - this will work until you add some non-default hadoop classpath dependencies
 
 
 TODO
 ----
 # built in synchronization using environment-provided zookeeper for things like barrier behaviours, i.e. drift needs all containers running first
-
+# distribute non-provided dependencies programatically
 
 FEATURES
 --------
+- quick and easy way access to Yarn resources by extending YarnMaster class 
+- allows running custom Yarn distributed application directly from IDE or as packaged thin jar
 
  
