@@ -32,7 +32,7 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
 import com.google.common.io.Resources;
 
-public class YarnContextWrapper {
+public class YarnContext {
 
     final private Configuration conf;
     final private String appName;
@@ -45,7 +45,7 @@ public class YarnContextWrapper {
     final private List<String> args;
     private Logger log;
 
-    public YarnContextWrapper(Logger log, Configuration conf, String appName, Class<?> appClass, List<String> args) throws Exception {
+    public YarnContext(Logger log, Configuration conf, String appName, Class<?> appClass, List<String> args) throws Exception {
         this.conf = conf;
         this.log = log;
         this.conf.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
@@ -125,7 +125,7 @@ public class YarnContextWrapper {
         for (java.nio.file.Path path : stream) {
             if (path.toFile().isDirectory()) {
                 addAllClassAndPropertiesFiles(path.toString(), relativePrefix, localResources);
-            } else if (path.getFileName().toString().matches(".*\\.(class|properties)$")) {
+            } else if (!path.getFileName().toString().contains("META-INF")) {
                 String relativeLocalFile = path.toString().substring(localPath.toString().length());
                 addLocalFile(relativeLocalFile, relativePrefix, localResources);
             }

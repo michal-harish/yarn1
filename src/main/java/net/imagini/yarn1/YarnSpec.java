@@ -5,12 +5,12 @@ import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 
-public class YarnContainerSpec {
+public class YarnSpec {
     private Resource capability;
     private Priority priority;
     private Class<?> mainClass;
 
-    public YarnContainerSpec(Resource capability, Priority priority,
+    public YarnSpec(Resource capability, Priority priority,
             Class<?> mainClass) {
         this.capability = capability;
         this.priority = priority;
@@ -29,10 +29,10 @@ public class YarnContainerSpec {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof YarnContainerSpec) {
-            return ((YarnContainerSpec) obj).capability.getMemory() == capability.getMemory()
-                    && ((YarnContainerSpec) obj).capability.getVirtualCores() == capability.getVirtualCores()
-                    && ((YarnContainerSpec) obj).priority.equals(priority);
+        if (obj instanceof YarnSpec) {
+            return ((YarnSpec) obj).capability.getMemory() == capability.getMemory()
+                    && ((YarnSpec) obj).capability.getVirtualCores() == capability.getVirtualCores()
+                    && ((YarnSpec) obj).priority.equals(priority);
         } else {
             return false;
         }
