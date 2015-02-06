@@ -1,6 +1,5 @@
 package net.imagini.yarn1;
 
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -35,10 +34,11 @@ import com.google.common.collect.Maps;
 public class YarnMaster implements AMRMClientAsync.CallbackHandler {
 
     /**
-     * This method should be called by the implementing application static main method.
-     * It does all the work around creating a yarn application and submitting the request
-     * to the yarn resource manager. The class given in the appClass argument will be run 
-     * inside the yarn-allocated master container. 
+     * This method should be called by the implementing application static main
+     * method. It does all the work around creating a yarn application and
+     * submitting the request to the yarn resource manager. The class given in
+     * the appClass argument will be run inside the yarn-allocated master
+     * container.
      */
     public static void submitApplicationMaster(Configuration conf, Class<? extends YarnMaster> appClass, String[] args) throws Exception {
 
@@ -85,14 +85,18 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         yarnClient.submitApplication(appContext);
 
         long start = System.currentTimeMillis();
-        log.info("Tracking URL: " + yarnClient.getApplicationReport(appId).getTrackingUrl());
+        ApplicationReport report = yarnClient.getApplicationReport(appId);
+        log.info("Tracking URL: " + report.getTrackingUrl());
+        float lastProgress = -0.0f;
         while (true) {
             Thread.sleep(1000);
             try {
-                ApplicationReport report = yarnClient.getApplicationReport(appId);
-
-                log.info(report.getApplicationId() + " " + report.getProgress() + " " + (System.currentTimeMillis() - report.getStartTime())
-                        + "(ms) " + report.getDiagnostics());
+                report = yarnClient.getApplicationReport(appId);
+                if (lastProgress != report.getProgress()) {
+                    lastProgress = report.getProgress();
+                    log.info(report.getApplicationId() + " " + report.getProgress() + " "
+                            + (System.currentTimeMillis() - report.getStartTime()) + "(ms) " + report.getDiagnostics());
+                }
                 if (!report.getFinalApplicationStatus().equals(FinalApplicationStatus.UNDEFINED)) {
                     log.info(report.getApplicationId() + " " + report.getFinalApplicationStatus());
                     log.info("Tracking url: " + report.getTrackingUrl());
@@ -111,24 +115,36 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     }
 
     /**
-     * Static Main method will be executed in the ApplicationMaster container as a result of
-     * the above submission. It is a default wrapper which will actually create
-     * an instance of the class passed as the first argument 
-     * The first argument will be the application class 
+     * Static Main method will be executed in the ApplicationMaster container as
+     * a result of the above submission. It is a default wrapper which will
+     * actually create an instance of the class passed as the first argument The
+     * first argument will be the application class
      */
     public static void main(String[] args) throws Exception {
         try {
             Class<? extends YarnMaster> appClass = Class.forName(args[0]).asSubclass(YarnMaster.class);
             YarnMaster.args = Arrays.asList(Arrays.copyOfRange(args, 2, args.length));
             YarnMaster master = appClass.newInstance();
+            try {
+                /**
+                 * The application master instance now has an opportunity to
+                 * request containers it needs
+                 **/
+                master.allocateContainers();
+                /**
+                 * within the implementation of allocateContainers, the
+                 * application should call submit containers for all the
+                 * resources it requires.
+                 **/
 
-            /** The application master instance now has an opportunity to request containers it needs **/
-            master.allocateContainers();
-            /** within the implementation of allocateContainers, the application should call submit
-             *  containers for all the resources it requires. **/
-
-            master.submitContainerRequests();
-            master.waitForCompletion();
+                master.submitContainerRequests();
+                master.waitForCompletion();
+            } catch (Throwable e) {
+                e.printStackTrace();
+                System.exit(2);
+            } finally {
+                master.onCompletion();
+            }
         } catch (Throwable e) {
             e.printStackTrace();
             System.exit(1);
@@ -136,8 +152,9 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     }
 
     /**
-     * Default constructor is run form the above main() method ... appClass.newInstance(), see that appClass
-     * must be an extension of this class(YarnMaster)
+     * Default constructor is run form the above main() method ...
+     * appClass.newInstance(), see that appClass must be an extension of this
+     * class(YarnMaster)
      */
     public YarnMaster() {
         this.log = LoggerFactory.getLogger(this.getClass());
@@ -172,13 +189,17 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         /**
          * To be implemented by application...
          * 
-         * For example to request 16 containers, with priority 1, 4 cores and 1024Mb of memory:
+         * For example to request 16 containers, with priority 1, 4 cores and
+         * 1024Mb of memory:
          * 
-         *  for(int i=0; i< 16; i++) {
-         *      requestContainer(1, MyAppWorker.class, 1024, 4);
-         *  }
-         *
+         * for(int i=0; i< 16; i++) { requestContainer(1, MyAppWorker.class,
+         * 1024, 4); }
+         * 
          */
+    }
+
+    protected void onCompletion() {
+        /** To be implemented by application... **/
     }
 
     final protected void requestContainer(int priority, Class<?> mainClass, int memoryMb, int vCores) {
@@ -217,6 +238,10 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         }
     }
 
+    protected String getDefaultZooKeeperConnect() {
+        return this.conf.get(YarnConfiguration.RM_ZK_ADDRESS, "localhost");
+    }
+
     private void waitForCompletion() throws Exception {
         while (numRequestedContainers.get() > numCompletedContainers.get()) {
             if (killed.get()) {
@@ -232,7 +257,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     }
 
     @Override
-    public void onContainersAllocated(List<Container> containers) {
+    final public void onContainersAllocated(List<Container> containers) {
         for (Container container : containers) {
             try {
 
@@ -247,8 +272,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
                             } else {
                                 YarnSpec currentlySelected = containersToAllocate.get(selected);
                                 if (currentlySelected.getCapability().getMemory() > spec.getCapability().getMemory()
-                                        || currentlySelected.getCapability().getVirtualCores() >= spec.getCapability()
-                                                .getVirtualCores()
+                                        || currentlySelected.getCapability().getVirtualCores() >= spec.getCapability().getVirtualCores()
                                         || currentlySelected.getPriority().getPriority() >= spec.getPriority().getPriority()) {
                                     selected = h;
                                 }
@@ -261,8 +285,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
                 }
                 if (selectedSpec != null) {
                     log.info("Assigned container " + container + " to " + selectedSpec.getMainClass().getSimpleName());
-                    YarnContext context = new YarnContext(conf, this.getClass().getSimpleName(),
-                            selectedSpec.getMainClass(), args);
+                    YarnContext context = new YarnContext(conf, this.getClass().getSimpleName(), selectedSpec.getMainClass(), args);
                     nmClient.startContainer(container, context.getContainer(false));
 
                 } else {
@@ -277,7 +300,13 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
 
     @Override
     final public float getProgress() {
-        return Math.max(0f, ((float) (numCompletedContainers).get()) / ((float) numRequestedContainers.get()));
+        float x ;
+        if (numRequestedContainers.get() == 0) {
+            x = 0f;
+        } else {
+            x = ((float) (numCompletedContainers).get()) / ((float) numRequestedContainers.get());
+        }
+        return x;
     }
 
     @Override
@@ -289,18 +318,18 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     }
 
     @Override
-    public void onShutdownRequest() {
+    final public void onShutdownRequest() {
         killed.set(true);
     }
 
     @Override
-    public void onNodesUpdated(List<NodeReport> updatedNodes) {
+    final public void onNodesUpdated(List<NodeReport> updatedNodes) {
         // TODO suspend - resume behaviour
         log.warn("NODE STATUS UPDATE NOT IMPLEMENTED");
     }
 
     @Override
-    public void onError(Throwable e) {
+    final public void onError(Throwable e) {
         log.error("Application Master received onError event", e);
         killed.set(true);
     }

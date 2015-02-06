@@ -66,13 +66,13 @@
                 <executions>
                     <execution>
                         <id>extract</id>
-                        <phase>process-sources</phase>
+                        <phase>package</phase>
                         <goals>
                             <goal>unpack-dependencies</goal>
                         </goals>
                         <configuration>
                             <outputDirectory>target/classes</outputDirectory>
-                            <excludeTransitive>true</excludeTransitive>
+<!--                             <excludeTransitive>true</excludeTransitive> -->
                             <excludeScope>provided</excludeScope>
                         </configuration>
                     </execution>

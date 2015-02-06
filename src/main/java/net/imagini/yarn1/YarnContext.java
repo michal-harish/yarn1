@@ -93,7 +93,7 @@ public class YarnContext {
     }
 
     private List<String> prepareCommands(boolean isMasterContext) {
-        String command = "tar -xvzf "+appVersion+".gz && java " + appClass.getName() + " " + StringUtils.join(" ", args);
+        String command = "tar -xzf "+appVersion+".gz && java " + appClass.getName() + " " + StringUtils.join(" ", args);
 //         command += " >> /var/log/helloyarn.log 2>1";
         command += " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout";
         command += " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr";
@@ -114,15 +114,25 @@ public class YarnContext {
             localResources.put(jarName, scRsrc);
         } else {
             String localArchive = localPath + appVersion+".gz";
-            Runtime.getRuntime().exec("tar -C " + localPath + " -cvzf " + localArchive + " ./");
-            Path dst = new Path(distFs.getHomeDirectory(), relativePrefix + "/" + appVersion + ".gz");
-            distFs.copyFromLocalFile(new Path(localArchive), dst);
-            FileStatus scFileStatus = distFs.getFileStatus(dst);
-            URL yarnUrl = ConverterUtils.getYarnUrlFromURI(dst.toUri());
-            log.info("Updating resource " + yarnUrl.getFile());
-            LocalResource scRsrc = LocalResource.newInstance(yarnUrl, LocalResourceType.ARCHIVE, LocalResourceVisibility.APPLICATION,
-                    scFileStatus.getLen(), scFileStatus.getModificationTime());
-            localResources.put(appVersion+".gz", scRsrc);
+            try {
+                if (masterContext) {
+                    log.info("Archiving " + localArchive);
+                    Process tarProcess = Runtime.getRuntime().exec("tar -C " + localPath + " -czf " + localArchive + " ./");
+                    if (tarProcess.waitFor() != 0) {
+                        throw new IOException("Failed to executre tar -C command on: " + localPath);
+                    }
+                }
+                Path dst = new Path(distFs.getHomeDirectory(), relativePrefix + "/" + appVersion + ".gz");
+                distFs.copyFromLocalFile(new Path(localArchive), dst);
+                FileStatus scFileStatus = distFs.getFileStatus(dst);
+                URL yarnUrl = ConverterUtils.getYarnUrlFromURI(dst.toUri());
+                log.info("Updating resource " + yarnUrl.getFile() + " " + scFileStatus.getLen());
+                LocalResource scRsrc = LocalResource.newInstance(yarnUrl, LocalResourceType.ARCHIVE, LocalResourceVisibility.APPLICATION,
+                        scFileStatus.getLen(), scFileStatus.getModificationTime());
+                localResources.put(appVersion+".gz", scRsrc);
+            } catch (InterruptedException e) {
+                throw new IOException(e);
+            }
         }
         return localResources;
 
