@@ -17,11 +17,19 @@ RUNING FROM COMMAND LINE
 mvn package
 yarn jar target/yarn1-example.jar
 
-
 RUNNING FROM IDE
 ----------------
 run HelloYarn1 as Java Application 
-# if your IDE doesn't support maven dependency plugin then run `mvn process sources` each time you change dependencies 
+# if your IDE doesn't support maven dependency plugin then run `mvn process-sources` before running the main class and also every time you change dependencies 
+
+
+QUICK SETUP OF LOCAL YARN CLUSTER
+---------------------------------
+1) download 2.3.0-cdh5.0.3 bundle from cloudera, unapck and cd into the content
+2) start yarn managers ./sbin/yarn-daemon.sh start resourcemanager && ./sbin/yarn-daemon.sh start
+WITH SINGLE-NODE LOCAL YARN CLUSTER
+3) start hadoop cluster ./sbin/hadoop-daemon.sh start namenode && ./sbin/hadoop-daemon.sh start secondarynamenode && ./sbin/hadoop-daemon.sh start datanode
+WITH SINGLE-NODE LOCAL YARN CLUSTER
 
 
 TODO
