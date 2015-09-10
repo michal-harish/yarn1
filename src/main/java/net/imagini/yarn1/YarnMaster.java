@@ -117,8 +117,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     /**
      * Static Main method will be executed in the ApplicationMaster container as
      * a result of the above submission. It is a default wrapper which will
-     * actually create an instance of the class passed as the first argument The
-     * first argument will be the application class
+     * actually create an instance of the class passed as the first argument
      */
     public static void main(String[] args) throws Exception {
         try {
