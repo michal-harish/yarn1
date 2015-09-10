@@ -63,7 +63,7 @@ public class YarnContext {
     public ContainerLaunchContext getContainer(boolean masterContext) throws IOException {
         ContainerLaunchContext context = Records.newRecord(ContainerLaunchContext.class);
         context.setEnvironment(prepareEnvironment());
-        context.setCommands(prepareCommands(masterContext));
+        context.setCommands(prepareCommands());
         context.setLocalResources(prepareLocalResource(appName, masterContext));
         distFs.close();
         Map<String, ByteBuffer> serviceData = Maps.newHashMap();
@@ -92,9 +92,8 @@ public class YarnContext {
 
     }
 
-    private List<String> prepareCommands(boolean isMasterContext) {
+    private List<String> prepareCommands() {
         String command = "tar -xzf "+appVersion+".gz && java " + appClass.getName() + " " + StringUtils.join(" ", args);
-//         command += " >> /var/log/helloyarn.log 2>1";
         command += " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout";
         command += " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr";
         return Arrays.asList(command);

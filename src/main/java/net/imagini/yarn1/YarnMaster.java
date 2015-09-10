@@ -237,10 +237,6 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         }
     }
 
-    protected String getDefaultZooKeeperConnect() {
-        return this.conf.get(YarnConfiguration.RM_ZK_ADDRESS, "localhost");
-    }
-
     private void waitForCompletion() throws Exception {
         while (numRequestedContainers.get() > numCompletedContainers.get()) {
             if (killed.get()) {
