@@ -29,7 +29,11 @@ public class YarnClient {
      * container.
      */
     public static void submitApplicationMaster(
-            Configuration conf, int priority, String queue, Class<? extends YarnMaster> appClass, String[] args
+            Configuration conf,
+            int priority,
+            String queue,
+            Boolean continuousService,
+            Class<? extends YarnMaster> appClass, String[] args
     ) throws Exception {
 
         boolean keepContainers = conf.getBoolean("master.keepContainers", false);
@@ -55,6 +59,7 @@ public class YarnClient {
         YarnClient.distributeJar(conf, appName);
         List<String> newArgs = Lists.newLinkedList();
         newArgs.add(appClass.getName());
+        newArgs.add(continuousService.toString());
         for (String arg : args) newArgs.add(arg);
         YarnContainer masterContainer = new YarnContainer(
             conf, priority, masterMemoryMb, masterNumCores,
