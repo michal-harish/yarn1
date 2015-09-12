@@ -20,13 +20,13 @@ public class HelloYarn1Master extends YarnMaster {
         conf.addResource(new FileInputStream("/opt/envs/stag/etc/hadoop/hdfs-site.xml"));
         conf.addResource(new FileInputStream("/opt/envs/stag/etc/hadoop/yarn-site.xml"));
 
-        YarnClient.submitApplicationMaster(conf, 0, "developers", false, HelloYarn1Master.class, args);
+        YarnClient.submitApplicationMaster(conf, 0, "developers", true, HelloYarn1Master.class, args);
     }
 
     @Override
     protected void onStartUp(String[] args) throws Exception {
         requestContainerGroup(1, HelloYarn1WorkerA.class, args, 3, 1024, 1);
-        requestContainerGroup(1, HelloYarn1WorkerB.class, args, 2, 512, 1);
+        requestContainerGroup(2, HelloYarn1WorkerB.class, args, 2, 512, 1);
     }
 
     @Override

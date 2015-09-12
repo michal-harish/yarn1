@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -64,7 +65,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     private NMClient nmClient;
     private Boolean continuousService;
     final private String appName;
-    final private List<YarnContainer> containersToAllocate = Lists.newLinkedList();
+    final private LinkedHashMap<YarnContainer, ContainerRequest> containersToAllocate = Maps.newLinkedHashMap();
     final private AtomicInteger numTasks = new AtomicInteger(0);
     final private AtomicInteger numCompletedTasks = new AtomicInteger(0);
     final private AtomicBoolean killed = new AtomicBoolean(false);
@@ -104,7 +105,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     final private void requestContainer(YarnContainer spec) {
         ContainerRequest containerAsk = new ContainerRequest(spec.capability, null, null, spec.priority);
         synchronized (containersToAllocate) {
-            containersToAllocate.add(spec);
+            containersToAllocate.put(spec, containerAsk);
         }
         rmClient.addContainerRequest(containerAsk);
         numTasks.incrementAndGet();
@@ -145,37 +146,38 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     final public void onContainersAllocated(List<Container> containers) {
         for (Container container : containers) {
             try {
-                YarnContainer selectedSpec = null;
+                Map.Entry<YarnContainer, ContainerRequest> selected = null;
                 synchronized (containersToAllocate) {
-                    int selected = -1;
-                    for (int h = 0; h < containersToAllocate.size(); h++) {
-                        YarnContainer spec = containersToAllocate.get(h);
+                    for(Map.Entry<YarnContainer, ContainerRequest> entry: containersToAllocate.entrySet()) {
+                        YarnContainer spec = entry.getKey();
                         if (spec.isSatisfiedBy(container)) {
-                            if (selected == -1) {
-                                selected = h;
+                            if (selected == null) {
+                                selected = entry;
                             } else {
-                                YarnContainer currentlySelected = containersToAllocate.get(selected);
-                                if (currentlySelected.capability.getMemory() > spec.capability.getMemory()
-                                        || currentlySelected.capability.getVirtualCores() >= spec.capability.getVirtualCores()
-                                        || currentlySelected.priority.getPriority() >= spec.priority.getPriority()) {
-                                    selected = h;
+                                YarnContainer selectedSoFar = selected.getKey();
+                                if (selectedSoFar.capability.getMemory() > spec.capability.getMemory()
+                                        || selectedSoFar.capability.getVirtualCores() >= spec.capability.getVirtualCores()
+                                        || selectedSoFar.priority.getPriority() >= spec.priority.getPriority()) {
+                                    selected = entry;
                                 }
                             }
                         }
                     }
-                    if (selected > -1) {
-                        selectedSpec = containersToAllocate.remove(selected);
+                    if (selected != null) {
+                        rmClient.removeContainerRequest(selected.getValue());
+                        containersToAllocate.remove(selected.getKey());
                     }
                 }
-                if (selectedSpec != null) {
-                    log.info("Launching Container " + container.getNodeHttpAddress() + " " + container + " to " + selectedSpec.mainClass);
+                if (selected != null) {
+                    YarnContainer spec = selected.getKey();
+                    log.info("Launching Container " + container.getNodeHttpAddress() + " " + container + " to " + spec.mainClass);
                     log.info(getContainerUrl(container));
-                    nmClient.startContainer(container, selectedSpec.createContainerLaunchContext());
-                    runningContainers.put(container.getId(), selectedSpec);
+                    nmClient.startContainer(container, spec.createContainerLaunchContext());
+                    runningContainers.put(container.getId(), spec);
                     log.info("Number of running containers = " + runningContainers.size());
                 } else {
-                    log.warn("Could not resolve allocated container with outstanding requested specs: " + getContainerUrl(container));
-                    log.warn("Container spec: " + container.getResource() +", priority:" + container.getPriority());
+                    log.warn("Could not resolve allocated container with outstanding requested specs: " + getContainerUrl(container)
+                            + ", container spec: " + container.getResource() +", priority:" + container.getPriority());
                     rmClient.releaseAssignedContainer(container.getId());
                     //FIXME rmClient seems to be re-requesting all the previously requested containers
                 }
