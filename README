@@ -1,28 +1,32 @@
 SIMPLE YARN EXECUTOR
 ====================
 
-- This is a "Hello Yarn" executuor and at the moment serves as a template
-- The idea for future is to have the generic part (net.imagini.yarn1) built as an artefact and have it a pure dependency in the implementing application
-- Branches for different versions of Hadoop/Yarn will come, this one is based on 2.3.0-cdh5.0.3
+- This is a YARN helper for submitting master and requesting containers by simply giving a class
+- At the moment this is based on hadoop/yarn 2.3.0-cdh5.0.3
 
 
 FEATURES
 --------
-- quick and easy access to Yarn resources by extending YarnMaster class 
-- allows running custom Yarn distributed application directly from IDE or as packaged thin jar
+- Easy deployment of distributed application by extending YarnMaster class 
+- Requesting containers from the instance of YarnMaster also simply by giving container class
+- Archiving classes and distribution done under the hood (dependency classes are included after mvn package)
+- Allows launching of fully distributed YARN application directly from IDE by using the launcher in the test package
 
 
-RUNING FROM COMMAND LINE
-------------------------
-mvn package
-yarn jar target/yarn1-example.jar
+QUICK START WITH INCLUDED EXAMPLE APPLICATION
+---------------------------------------------
+This is in package `org.apache.yarn1.example`
 
-RUNNING FROM IDE
-----------------
-run HelloYarn1Launcher under the test sources  as Java Application
-# if your IDE doesn't support maven dependency plugin then run `mvn process-sources` before running the main class and also every time you change dependencies 
+# Running as `yarn` program
+1) mvn clean package
+2) yarn jar target/yarn1-example.jar 
 
+# Running from IDE
+1) mvn clean package - if your IDE doesn't support maven dependency plugin)
+2) modify HelloYarn1Master configuration to point to your hadoop and yarn configs
+3) run Yarn1Launcher under the test sources as Java Application in your IDE
 
+  
 QUICK SETUP OF LOCAL YARN CLUSTER
 ---------------------------------
 1) download 2.3.0-cdh5.0.3 bundle from cloudera, unapck and cd into the content
@@ -33,7 +37,5 @@ WITH SINGLE-NODE LOCAL YARN CLUSTER
 
 TODO
 ----
-- built in synchronization using environment-provided zookeeper for things like barrier behaviours
-- i.e. drift needs all containers first allocated and running and then execute
-- distribute non-provided dependencies programatically
+- distribute non-provided dependencies programatically, i.e. without having to run mvn package first
 
