@@ -1,6 +1,5 @@
 package org.apache.yarn1;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.api.records.*;
@@ -32,12 +31,12 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     public static void main(String[] args) throws Exception {
         try {
             Class<? extends YarnMaster> appClass = Class.forName(args[0]).asSubclass(YarnMaster.class);
-            Boolean autorestart = Boolean.valueOf(args[1]);
+            Boolean restartCompletedContainers = Boolean.valueOf(args[1]);
             String[] originalArgs = Arrays.copyOfRange(args, 2, args.length);
             log.info("Starting Master Instance: " + appClass.getName());
             YarnMaster master = appClass.newInstance();
             try {
-                master.initialize(autorestart);
+                master.initialize(restartCompletedContainers);
                 /**
                  * The application master instance now has an opportunity to
                  * request containers it needs in the onStartUp(args), e.g.to request 16 containers,

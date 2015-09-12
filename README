@@ -37,5 +37,8 @@ WITH SINGLE-NODE LOCAL YARN CLUSTER
 
 TODO
 ----
-- distribute non-provided dependencies programatically, i.e. without having to run mvn package first
+- shutdown hook which will kill the yarn app
+- onNodesUpdated behaviour
+- reporting progress for continuous service could represent a "lag" instead of ratio of completed and submitted tasks
+- distribute non-provided dependencies programatically, i.e. without having to run mvn compile first
 
