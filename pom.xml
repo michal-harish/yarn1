@@ -13,19 +13,19 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-yarn-client</artifactId>
             <version>${hadoop.version}</version>
-            <!--<scope>provided</scope>-->
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
             <version>${hadoop.version}</version>
-            <!--<scope>provided</scope>-->
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-hdfs</artifactId>
             <version>${hadoop.version}</version>
-            <!--<scope>provided</scope>-->
+            <scope>provided</scope>
         </dependency>
 
         <!--  example bundled dependency -->
@@ -50,6 +50,7 @@
                 <filtering>true</filtering>
             </resource>
         </resources>
+        <testSourceDirectory>src/test/java</testSourceDirectory>
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -71,8 +72,7 @@
                         </goals>
                         <configuration>
                             <outputDirectory>target/classes</outputDirectory>
-<!--                             <excludeTransitive>true</excludeTransitive> -->
-                            <excludeScope>provided</excludeScope>
+                            <includeScope>runtime</includeScope>
                         </configuration>
                     </execution>
                 </executions>
@@ -92,7 +92,7 @@
                             <finalName>yarn1-example</finalName>
                             <archive>
                                 <manifest>
-                                    <mainClass>net.imagini.yarn1.example.HelloYarn1</mainClass>
+                                    <mainClass>org.apache.yarn1.example.HelloYarn1Master</mainClass>
                                 </manifest>
                             </archive>
                             <descriptorRefs>
