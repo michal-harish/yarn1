@@ -211,7 +211,8 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         for (ContainerStatus status : statuses) {
             YarnContainer completedSpec = runningContainers.remove(status.getContainerId());
             if (completedSpec != null) {
-                log.info("Completed container " + status.getContainerId());
+                log.info("Completed container " + status.getContainerId()
+                        + ", (exit status " + status.getExitStatus() + ")  " + status.getDiagnostics());
                 if (continuousService) {
                     log.info("Auto-restarting container " + completedSpec);
                     requestContainer(completedSpec);
