@@ -63,8 +63,8 @@ public class YarnClient {
         newArgs.add(continuousService.toString());
         for (String arg : args) newArgs.add(arg);
         YarnContainer masterContainer = new YarnContainer(
-            conf, priority, masterMemoryMb, masterNumCores,
-            appName, YarnMaster.class, newArgs.toArray(new String[newArgs.size()])
+                conf, priority, masterMemoryMb, masterNumCores,
+                appName, YarnMaster.class, newArgs.toArray(new String[newArgs.size()])
         );
 
         ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
@@ -89,7 +89,7 @@ public class YarnClient {
                     } catch (Throwable e) {
                         e.printStackTrace(System.out);
                     } finally {
-                        yarnClient.stop();
+                        //yarnClient.stop();
                     }
                 }
             }
