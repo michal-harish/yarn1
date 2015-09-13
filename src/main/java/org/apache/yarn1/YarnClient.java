@@ -118,6 +118,8 @@ public class YarnClient {
             }
         }
 
+        yarnClient.stop();
+
         if (!report.getFinalApplicationStatus().equals(FinalApplicationStatus.SUCCEEDED)) {
             System.exit(1);
         }
