@@ -72,9 +72,9 @@ public class YarnContainer {
             classPathEnv.append(":");// ApplicationConstants.CLASS_PATH_SEPARATOR
             classPathEnv.append(c.trim());
         }
-        if (conf.get("classpath") != null) {
+        if (conf.get("yarn.classpath") != null) {
             classPathEnv.append(":");
-            classPathEnv.append(conf.get("classpath").trim());
+            classPathEnv.append(conf.get("yarn.classpath").trim());
         }
         Map<String, String> env = Maps.newHashMap();
         env.put(Environment.CLASSPATH.name(), classPathEnv.toString());

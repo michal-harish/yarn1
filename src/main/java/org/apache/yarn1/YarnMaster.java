@@ -119,7 +119,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     }
     final protected void requestContainerGroup(YarnContainerRequest[] requests) throws Exception {
         for(YarnContainerRequest spec: requests) {
-            log.info("Requesting container (" + spec.memoryMb + " x " + spec.numCores + ")");
+            log.info("Requesting container (" + spec.memoryMb + " x " + spec.numCores + ")" + Arrays.asList(spec.args));
             requestContainer(
                     new YarnContainer(conf, spec.priority, spec.memoryMb, spec.numCores, appName, spec.mainClass, spec.args)
             );
