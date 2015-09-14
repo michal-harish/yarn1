@@ -2,6 +2,7 @@ package org.apache.yarn1.example;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.yarn1.YarnClient;
+import org.apache.yarn1.YarnContainerRequest;
 import org.apache.yarn1.YarnMaster;
 
 import org.slf4j.Logger;
@@ -19,14 +20,16 @@ public class HelloYarn1Master extends YarnMaster {
         conf.addResource(new FileInputStream("/opt/envs/stag/etc/hadoop/core-site.xml"));
         conf.addResource(new FileInputStream("/opt/envs/stag/etc/hadoop/hdfs-site.xml"));
         conf.addResource(new FileInputStream("/opt/envs/stag/etc/hadoop/yarn-site.xml"));
+        conf.set("master.priority", "0");
+        conf.set("master.queue", "developers");
 
-        YarnClient.submitApplicationMaster(conf, 0, "developers", false, HelloYarn1Master.class, args);
+        YarnClient.submitApplicationMaster(conf, false, "HelloYarn1", HelloYarn1Master.class, args);
     }
 
     @Override
     protected void onStartUp(String[] args) throws Exception {
-        requestContainerGroup(1, HelloYarn1WorkerA.class, args, 3, 1024, 1);
-        requestContainerGroup(2, HelloYarn1WorkerB.class, args, 2, 512, 1);
+        requestContainerGroup(2, new YarnContainerRequest(HelloYarn1WorkerA.class, args, 3, 1024, 1));
+        requestContainerGroup(2, new YarnContainerRequest(HelloYarn1WorkerB.class, args, 2, 512, 1));
     }
 
     @Override

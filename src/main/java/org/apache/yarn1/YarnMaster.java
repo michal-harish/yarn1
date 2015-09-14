@@ -110,13 +110,19 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         numTasks.incrementAndGet();
     }
 
-    final protected void requestContainerGroup(
-            int numContainers, Class<?> mainClass, String[] args, int priority, int memoryMb, int numCores)
-            throws Exception {
-        log.info("Requesting container group: " + numContainers + " x (" + memoryMb + " x " + numCores + ")");
+    final protected void requestContainerGroup(int numContainers, YarnContainerRequest spec) throws Exception {
+        YarnContainerRequest[] requests = new YarnContainerRequest[numContainers];
         for (int i = 0; i < numContainers; i++) {
-            YarnContainer spec = new YarnContainer(conf, priority, memoryMb, numCores, appName, mainClass, args);
-            requestContainer(spec);
+            requests[i] = spec;
+        }
+        requestContainerGroup(requests);
+    }
+    final protected void requestContainerGroup(YarnContainerRequest[] requests) throws Exception {
+        for(YarnContainerRequest spec: requests) {
+            log.info("Requesting container (" + spec.memoryMb + " x " + spec.numCores + ")");
+            requestContainer(
+                    new YarnContainer(conf, spec.priority, spec.memoryMb, spec.numCores, appName, spec.mainClass, spec.args)
+            );
         }
         // wait for allocation before requesting other groups
         synchronized (containersToAllocate) {
