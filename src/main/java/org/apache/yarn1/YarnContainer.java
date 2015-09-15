@@ -52,7 +52,7 @@ public class YarnContainer {
         ContainerLaunchContext context = Records.newRecord(ContainerLaunchContext.class);
         context.setEnvironment(prepareEnvironment());
         context.setCommands(prepareCommands());
-        context.setLocalResources(prepareLocalResource());
+        context.setLocalResources(prepareLocalResources());
         Map<String, ByteBuffer> serviceData = Maps.newHashMap();
         context.setServiceData(serviceData);
         return context;
@@ -91,21 +91,25 @@ public class YarnContainer {
         return Arrays.asList(command);
     }
 
-    private Map<String, LocalResource> prepareLocalResource() throws IOException {
+    private Map<String, LocalResource> prepareLocalResources() throws IOException {
         Map<String, LocalResource> localResources = Maps.newHashMap();
-
-        //Main Jar (distributed via YarnClient.distributeJar(..))
         FileSystem distFs = FileSystem.get(conf);
-        final Path dst = new Path(distFs.getHomeDirectory(), jarName);
+
+        prepareLocalResourceFile(localResources, jarName, jarName, distFs);
+        prepareLocalResourceFile(localResources, "yarn1.configuration", jarName.replace(".jar", ".configuration"), distFs);
+
+        distFs.close();
+        return localResources;
+
+    }
+
+    private void prepareLocalResourceFile(Map<String, LocalResource> localResources, String fileName, String remoteFileName, FileSystem distFs) throws IOException {
+        final Path dst = new Path(distFs.getHomeDirectory(), remoteFileName);
         FileStatus scFileStatus = distFs.getFileStatus(dst);
         final URL yarnUrl = ConverterUtils.getYarnUrlFromURI(dst.toUri());
         LocalResource scRsrc = LocalResource.newInstance(
                 yarnUrl, LocalResourceType.FILE, LocalResourceVisibility.APPLICATION,
                 scFileStatus.getLen(), scFileStatus.getModificationTime());
-        localResources.put(jarName, scRsrc);
-        distFs.close();
-
-        return localResources;
-
+        localResources.put(fileName, scRsrc);
     }
 }

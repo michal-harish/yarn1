@@ -2,6 +2,7 @@ package org.apache.yarn1;
 
 import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -12,6 +13,8 @@ import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.List;
 
@@ -80,16 +83,16 @@ public class YarnClient {
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override public void run() {
-                if (!yarnClient.isInState(Service.STATE.STOPPED)) {
-                    log.info("Killing yarn application in shutdown hook");
-                    try {
-                        yarnClient.killApplication(appId);
-                    } catch (Throwable e) {
-                        e.printStackTrace(System.out);
-                    } finally {
-                        //yarnClient.stop();
-                    }
+            if (!yarnClient.isInState(Service.STATE.STOPPED)) {
+                log.info("Killing yarn application in shutdown hook");
+                try {
+                    yarnClient.killApplication(appId);
+                } catch (Throwable e) {
+                    e.printStackTrace(System.out);
+                } finally {
+                    //yarnClient.stop();
                 }
+            }
             }
         });
 
@@ -130,8 +133,18 @@ public class YarnClient {
      * @throws IOException
      */
     public static void distributeJar(Configuration conf, String appName) throws IOException {
-        final String localPath = YarnClient.class.getProtectionDomain().getCodeSource().getLocation().getFile().replace(".jar/", ".jar");
         final FileSystem distFs = FileSystem.get(conf);
+
+        //distribute configuration
+        final Path dstConfig = new Path(distFs.getHomeDirectory(), appName + ".configuration");
+        final FSDataOutputStream fs = distFs.create(dstConfig);
+        final DataOutput os = new DataOutputStream(fs);
+        conf.write(os);
+        fs.close();
+        log.info("Updated resource " + dstConfig);
+
+        //distribute main jar
+        final String localPath = YarnClient.class.getProtectionDomain().getCodeSource().getLocation().getFile().replace(".jar/", ".jar");
         final Path src;
         final String jarName = appName + ".jar";
         if (localPath.endsWith(".jar")) {

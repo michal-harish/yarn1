@@ -6,7 +6,6 @@ import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +45,19 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
                  * }
                  */
                 master.onStartUp(originalArgs);
-                master.waitForCompletion();
+                while (master.numTasks.get() > master.numCompletedTasks.get()) {
+                    synchronized(master.killed) {
+                        master.killed.wait(10000);
+                    }
+                    if (master.killed.get()) {
+                        try {
+                            master.rmClient.unregisterApplicationMaster(FinalApplicationStatus.KILLED, "", "");
+                        } finally {
+                            System.exit(3);
+                        }
+                    }
+                }
+                master.rmClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, "", "");
             } catch (Throwable e) {
                 e.printStackTrace();
                 System.exit(2);
@@ -59,7 +70,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         }
     }
 
-    private Configuration conf;
+    protected Configuration config;
     private AMRMClientAsync<ContainerRequest> rmClient;
     private NMClient nmClient;
     private Boolean continuousService;
@@ -78,11 +89,11 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     public YarnMaster() {
         // TODO pass host port and url for tracking to a generic guice servlet
         this.appName = this.getClass().getSimpleName();
-        conf = new YarnConfiguration();
+        config = new Yarn1Configuration();
         rmClient = AMRMClientAsync.createAMRMClientAsync(100, this);
-        rmClient.init(conf);
+        rmClient.init(config);
         nmClient = NMClient.createNMClient();
-        nmClient.init(conf);
+        nmClient.init(config);
     }
 
     private void initialize(Boolean continuousService) throws IOException, YarnException {
@@ -90,15 +101,48 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         rmClient.start();
         rmClient.registerApplicationMaster("", 0, "");
         nmClient.start();
-        YarnClient.distributeJar(conf, appName);
+        YarnClient.distributeJar(config, appName);
     }
 
     protected void onStartUp(String[] args) throws Exception {
         /** To be implemented by application... **/
     }
 
+    @Override
+    public float getProgress() {
+        /** To be overriden by application... - will be invoked at regular intervals**/
+        if (numTasks.get() == 0) {
+            return 0f;
+        } else {
+            return ((float) (numCompletedTasks.get())) / ((float) numTasks.get());
+        }
+    }
+
     protected void onCompletion() {
         /** To be implemented by application... **/
+    }
+
+    @Override
+    public void onShutdownRequest() {
+        synchronized(killed) {
+            killed.set(true);
+            killed.notify();
+        }
+    }
+
+    @Override
+    public void onNodesUpdated(List<NodeReport> updatedNodes) {
+        // TODO suspend - resume behaviour
+        log.warn("NODE STATUS UPDATE NOT IMPLEMENTED");
+    }
+
+    @Override
+    public void onError(Throwable e) {
+        log.error("Application Master received onError event", e);
+        synchronized(killed) {
+            killed.set(true);
+            killed.notify();
+        }
     }
 
     final private void requestContainer(YarnContainer spec) {
@@ -121,7 +165,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         for(YarnContainerRequest spec: requests) {
             log.info("Requesting container (" + spec.memoryMb + " x " + spec.numCores + ")" + Arrays.asList(spec.args));
             requestContainer(
-                    new YarnContainer(conf, spec.priority, spec.memoryMb, spec.numCores, appName, spec.mainClass, spec.args)
+                    new YarnContainer(config, spec.priority, spec.memoryMb, spec.numCores, appName, spec.mainClass, spec.args)
             );
         }
         // wait for allocation before requesting other groups
@@ -131,20 +175,6 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
             }
         }
 
-    }
-
-    private void waitForCompletion() throws Exception {
-        while (numTasks.get() > numCompletedTasks.get()) {
-            if (killed.get()) {
-                try {
-                    rmClient.unregisterApplicationMaster(FinalApplicationStatus.KILLED, "", "");
-                } finally {
-                    System.exit(3);
-                }
-            }
-            Thread.sleep(1000);
-        }
-        rmClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, "", "");
     }
 
     @Override
@@ -189,27 +219,16 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
 
             } catch (Throwable ex) {
                 log.error("Error while assigning allocated container", ex);
-                killed.set(true);
+                synchronized(killed) {
+                    killed.set(true);
+                    killed.notify();
+                }
             }
         }
     }
 
     private String getContainerUrl(Container container) {
         return "http://" + container.getNodeHttpAddress() + "/node/containerlogs/" + container.getId();
-    }
-
-    @Override
-    final public float getProgress() {
-        float x;
-        if (continuousService) {
-            x = 0f;
-            //TODO provide a way to report "lag" for continuous services
-        } else if (numTasks.get() == 0) {
-            x = 0f;
-        } else {
-            x = ((float) (numCompletedTasks.get())) / ((float) numTasks.get());
-        }
-        return x;
     }
 
     @Override
@@ -228,21 +247,5 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         }
     }
 
-    @Override
-    final public void onShutdownRequest() {
-        killed.set(true);
-    }
-
-    @Override
-    final public void onNodesUpdated(List<NodeReport> updatedNodes) {
-        // TODO suspend - resume behaviour
-        log.warn("NODE STATUS UPDATE NOT IMPLEMENTED");
-    }
-
-    @Override
-    final public void onError(Throwable e) {
-        log.error("Application Master received onError event", e);
-        killed.set(true);
-    }
 
 }
