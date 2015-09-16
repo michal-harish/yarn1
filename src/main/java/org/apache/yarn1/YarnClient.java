@@ -99,7 +99,7 @@ public class YarnClient {
                 report = yarnClient.getApplicationReport(appId);
                 if (lastProgress != report.getProgress()) {
                     lastProgress = report.getProgress();
-                    log.info(report.getApplicationId() + " " + report.getProgress() + " "
+                    log.info(report.getApplicationId() + " " + (report.getProgress() * 100.00) + "% "
                             + (System.currentTimeMillis() - report.getStartTime()) + "(ms) " + report.getDiagnostics());
                 }
                 if (!report.getFinalApplicationStatus().equals(FinalApplicationStatus.UNDEFINED)) {
