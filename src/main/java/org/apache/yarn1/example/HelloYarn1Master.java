@@ -9,22 +9,32 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 
 public class HelloYarn1Master extends YarnMaster {
 
     private static final Logger log = LoggerFactory.getLogger(HelloYarn1Master.class);
 
-    public static void main(String[] args) throws Exception {
-        Configuration conf = new Configuration();
+    public HelloYarn1Master(Configuration config) throws FileNotFoundException {
+        super(config);
+    }
 
-        conf.addResource(new FileInputStream("/opt/envs/stag/etc/hadoop/core-site.xml"));
-        conf.addResource(new FileInputStream("/opt/envs/stag/etc/hadoop/hdfs-site.xml"));
-        conf.addResource(new FileInputStream("/opt/envs/stag/etc/hadoop/yarn-site.xml"));
-        conf.set("yarn.name", "HelloYarn1");
-        conf.set("yarn.master.priority", "0");
-        conf.set("yarn.master.queue", "developers");
-
-        YarnClient.submitApplicationMaster(conf, false, HelloYarn1Master.class, args);
+    public static void main(final String[] args) throws Exception {
+        Configuration config = new Configuration() {
+            {
+                if (args.length == 1) {
+                    String yarnConfigPath = args[0];
+                    System.out.println("Using yarn and hadoop config path: " + yarnConfigPath);
+                    addResource(new FileInputStream(yarnConfigPath + "/core-site.xml"));
+                    addResource(new FileInputStream(yarnConfigPath + "/hdfs-site.xml"));
+                    addResource(new FileInputStream(yarnConfigPath + "/yarn-site.xml"));
+                }
+                set("yarn.name", "HelloYarn1");
+                set("yarn.master.priority", "0");
+                set("yarn.master.queue", "developers");
+            }
+        };
+        YarnClient.submitApplicationMaster(config, false, HelloYarn1Master.class, args);
     }
 
     @Override

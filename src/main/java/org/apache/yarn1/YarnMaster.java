@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,13 +30,15 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
      */
     public static void main(String[] args) throws Exception {
         try {
-            Class<? extends YarnMaster> appClass = Class.forName(args[0]).asSubclass(YarnMaster.class);
-            Boolean restartCompletedContainers = Boolean.valueOf(args[1]);
-            String[] originalArgs = Arrays.copyOfRange(args, 2, args.length);
-            log.info("Starting Master Instance: " + appClass.getName());
-            YarnMaster master = appClass.newInstance();
+            Configuration config = new Yarn1Configuration();
+            Class<? extends YarnMaster> appClass = Class.forName(config.get("yarn.master.class")).asSubclass(YarnMaster.class);
+            Boolean restartCompletedContainers = config.getBoolean("yarn.container.autorestart", false);
+            log.info("Starting Master Instance: " + appClass.getName() + " wutg container.autorestart = " + restartCompletedContainers);
+            Constructor<? extends YarnMaster> constructor = appClass.getConstructor(Configuration.class);
+            YarnMaster master = null;
             try {
-                master.initialize(restartCompletedContainers);
+                master = constructor.newInstance(config);
+                master.initializeAsYarn(restartCompletedContainers);
                 /**
                  * The application master instance now has an opportunity to
                  * request containers it needs in the onStartUp(args), e.g.to request 16 containers,
@@ -44,7 +47,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
                  *  requestContainer(1, MyAppWorker.class,1024, 4);
                  * }
                  */
-                master.onStartUp(originalArgs);
+                master.onStartUp(args);
                 while (master.numTasks.get() > master.numCompletedTasks.get()) {
                     synchronized(master.killed) {
                         master.killed.wait(10000);
@@ -62,7 +65,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
                 e.printStackTrace();
                 System.exit(2);
             } finally {
-                master.onCompletion();
+                if (master != null) master.onCompletion();
             }
         } catch (Throwable e) {
             e.printStackTrace(System.out);
@@ -70,10 +73,10 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         }
     }
 
-    protected Configuration config;
     private AMRMClientAsync<ContainerRequest> rmClient;
     private NMClient nmClient;
     private Boolean continuousService;
+    final protected Configuration config;
     final private String appName;
     final private LinkedHashMap<YarnContainer, ContainerRequest> containersToAllocate = Maps.newLinkedHashMap();
     final private AtomicInteger numTasks = new AtomicInteger(0);
@@ -82,26 +85,27 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     final private Map<ContainerId, YarnContainer> runningContainers = Maps.newConcurrentMap();
 
     /**
-     * Default constructor is run form the above main() method ...
-     * appClass.newInstance(), see that appClass must be an extension of this
-     * class(YarnMaster)
+     * Default constructor can be used for local execution
      */
-    public YarnMaster() {
-        // TODO pass host port and url for tracking to a generic guice servlet
+    public YarnMaster(Configuration config) {
         this.appName = this.getClass().getSimpleName();
-        config = new Yarn1Configuration();
+        this.config = config;
+    }
+    /**
+     * protected constructor with config is run form the above main() method which will be run inside the yarn
+     * app master container
+     */
+    public void initializeAsYarn(Boolean continuousService) throws IOException, YarnException {
+        this.continuousService = continuousService;
         rmClient = AMRMClientAsync.createAMRMClientAsync(100, this);
         rmClient.init(config);
         nmClient = NMClient.createNMClient();
         nmClient.init(config);
-    }
-
-    private void initialize(Boolean continuousService) throws IOException, YarnException {
-        this.continuousService = continuousService;
         rmClient.start();
         rmClient.registerApplicationMaster("", 0, "");
         nmClient.start();
         YarnClient.distributeJar(config, appName);
+        // TODO pass host port and url for tracking to a generic guice servlet
     }
 
     protected void onStartUp(String[] args) throws Exception {
