@@ -32,7 +32,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         try {
             Configuration config = new Yarn1Configuration();
             Class<? extends YarnMaster> appClass = Class.forName(config.get("yarn.master.class")).asSubclass(YarnMaster.class);
-            Boolean restartCompletedContainers = config.getBoolean("yarn.container.autorestart", false);
+            Boolean restartCompletedContainers = config.getBoolean("yarn.keepContainers", false);
             log.info("Starting Master Instance: " + appClass.getName() + " with container.autorestart = " + restartCompletedContainers);
             Constructor<? extends YarnMaster> constructor = appClass.getConstructor(Configuration.class);
             YarnMaster master = null;

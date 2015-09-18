@@ -31,10 +31,11 @@ public class HelloYarn1Master extends YarnMaster {
                 }
                 set("yarn.name", "HelloYarn1");
                 set("yarn.master.priority", "0");
+                set("yarn.keepContainers", "false");
                 set("yarn.master.queue", "developers");
             }
         };
-        YarnClient.submitApplicationMaster(config, false, HelloYarn1Master.class, args);
+        YarnClient.submitApplicationMaster(config, HelloYarn1Master.class, args, true);
     }
 
     @Override

@@ -31,18 +31,24 @@ public class YarnClient {
      * container.
      */
     public static void submitApplicationMaster(
-            Configuration conf, Boolean autorestartContainers, Class<? extends YarnMaster> appClass, String[] args
+            Configuration conf,
+            Class<? extends YarnMaster> appClass,
+            String[] args,
+            Boolean awaitCompletion
     ) throws Exception {
 
         conf.set("yarn.master.class", appClass.getName());
-        conf.setBoolean("yarn.container.autorestart", autorestartContainers);
-        log.info("Submitting application master class " + appClass.getName());
         String appName = conf.get("yarn.name");
-        boolean keepContainers = conf.getBoolean("yarn.keepContainers", false);
         String queue = conf.get("yarn.queue");
         int masterPriority = conf.getInt("yarn.master.priority", 0);
         int masterMemoryMb = conf.getInt("yarn.master.memory.mb", 256);
         int masterNumCores = conf.getInt("yarn.master.num.cores", 1);
+        boolean keepContainers = conf.getBoolean("yarn.keepContainers", false);
+        /**
+         * keepKontainers has 2 meanings:
+         * 1) yarn uses it to keep containers across attempts
+         * 2) yarn1 uses it to autorestart failed containers
+         */
 
         final org.apache.hadoop.yarn.client.api.YarnClient yarnClient = org.apache.hadoop.yarn.client.api.YarnClient.createYarnClient();
         yarnClient.init(conf);
@@ -51,6 +57,9 @@ public class YarnClient {
         for (NodeReport report : yarnClient.getNodeReports(NodeState.RUNNING)) {
             log.debug("Node report:" + report.getNodeId() + " @ " + report.getHttpAddress() + " | " + report.getCapability());
         }
+        //TODO check if appName already running and config yarn.master.failifexists
+
+        log.info("Submitting application master class " + appClass.getName() + " with keepContainers = " + keepContainers);
 
         YarnClientApplication app = yarnClient.createApplication();
         GetNewApplicationResponse appResponse = app.getNewApplicationResponse();
@@ -66,7 +75,7 @@ public class YarnClient {
 
         ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
         appContext.setKeepContainersAcrossApplicationAttempts(keepContainers);
-        appContext.setApplicationName(appClass.getName().replace("$", "")); //FIXME object.getClass.getName ..$ !?
+        appContext.setApplicationName(appName);
         appContext.setResource(masterContainer.capability);
         appContext.setPriority(masterContainer.priority);
         appContext.setQueue(queue);
@@ -77,53 +86,57 @@ public class YarnClient {
         ApplicationReport report = yarnClient.getApplicationReport(appId);
         log.info("Tracking URL: " + report.getTrackingUrl());
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override public void run() {
-            if (!yarnClient.isInState(Service.STATE.STOPPED)) {
-                log.info("Killing yarn application in shutdown hook");
+        if (awaitCompletion) {
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                @Override
+                public void run() {
+                    if (!yarnClient.isInState(Service.STATE.STOPPED)) {
+                        log.info("Killing yarn application in shutdown hook");
+                        try {
+                            yarnClient.killApplication(appId);
+                        } catch (Throwable e) {
+                            e.printStackTrace(System.out);
+                        } finally {
+                            //yarnClient.stop();
+                        }
+                    }
+                }
+            });
+
+            float lastProgress = -0.0f;
+            while (true) {
+                Thread.sleep(1000);
                 try {
-                    yarnClient.killApplication(appId);
+                    report = yarnClient.getApplicationReport(appId);
+                    if (lastProgress != report.getProgress()) {
+                        lastProgress = report.getProgress();
+                        log.info(report.getApplicationId() + " " + (report.getProgress() * 100.00) + "% "
+                                + (System.currentTimeMillis() - report.getStartTime()) + "(ms) " + report.getDiagnostics());
+                    }
+                    if (!report.getFinalApplicationStatus().equals(FinalApplicationStatus.UNDEFINED)) {
+                        log.info(report.getApplicationId() + " " + report.getFinalApplicationStatus());
+                        log.info("Tracking url: " + report.getTrackingUrl());
+                        log.info("Finish time: " + ((System.currentTimeMillis() - report.getStartTime()) / 1000) + "(s)");
+                        break;
+                    }
                 } catch (Throwable e) {
-                    e.printStackTrace(System.out);
-                } finally {
-                    //yarnClient.stop();
+                    log.error("Master Heart Beat Error - terminating", e);
+                    yarnClient.killApplication(appId);
+                    Thread.sleep(2000);
                 }
             }
-            }
-        });
+            yarnClient.stop();
 
-        float lastProgress = -0.0f;
-        while (true) {
-            Thread.sleep(1000);
-            try {
-                report = yarnClient.getApplicationReport(appId);
-                if (lastProgress != report.getProgress()) {
-                    lastProgress = report.getProgress();
-                    log.info(report.getApplicationId() + " " + (report.getProgress() * 100.00) + "% "
-                            + (System.currentTimeMillis() - report.getStartTime()) + "(ms) " + report.getDiagnostics());
-                }
-                if (!report.getFinalApplicationStatus().equals(FinalApplicationStatus.UNDEFINED)) {
-                    log.info(report.getApplicationId() + " " + report.getFinalApplicationStatus());
-                    log.info("Tracking url: " + report.getTrackingUrl());
-                    log.info("Finish time: " + ((System.currentTimeMillis() - report.getStartTime()) / 1000) + "(s)");
-                    break;
-                }
-            } catch (Throwable e) {
-                log.error("Master Heart Beat Error - terminating", e);
-                yarnClient.killApplication(appId);
-                Thread.sleep(2000);
+            if (!report.getFinalApplicationStatus().equals(FinalApplicationStatus.SUCCEEDED)) {
+                System.exit(1);
             }
         }
-
         yarnClient.stop();
-
-        if (!report.getFinalApplicationStatus().equals(FinalApplicationStatus.SUCCEEDED)) {
-            System.exit(1);
-        }
     }
 
     /**
      * Distribute all dependencies in a single jar both from Client to Master as well as Master to Container(s)
+     *
      * @param conf
      * @param appName
      * @throws IOException
@@ -150,7 +163,7 @@ public class YarnClient {
             String localArchive = localPath + appName + ".jar";
             log.info("Archiving and distributing local classes from current working directory " + localArchive);
             try {
-                String archiveCommand = "jar cMf " + localArchive  + " -C " + localPath + " ./";
+                String archiveCommand = "jar cMf " + localArchive + " -C " + localPath + " ./";
                 FileSystem.getLocal(conf).delete(new Path(localArchive), false);
                 Process archivingProcess = Runtime.getRuntime().exec(archiveCommand);
                 if (archivingProcess.waitFor() != 0) {
