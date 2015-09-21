@@ -15,7 +15,7 @@ This is a YARN helper for submitting master and requesting containers by simply 
 
 - Easy deployment of distributed application by extending YarnMaster class 
 - Requesting containers from the instance of YarnMaster also simply by giving container class
-- Archiving classes and distribution done under the hood (dependency classes are included after mvn package)
+- Archiving classes and distribution done under the hood (dependency classes are included after mvn compile)
 - Allows launching of fully distributed YARN application directly from IDE by using the launcher in the test package
 
 <a name="quickstart">
@@ -29,7 +29,7 @@ This is in package `org.apache.yarn1.example`
 2. yarn jar target/yarn1-example.jar
 
 ### Running from IDE
-1. mvn clean package - if your IDE doesn't support maven dependency plugin)
+1. mvn clean compile - if your IDE doesn't support maven dependency plugin)
 2. run Yarn1Launcher under the test sources as Java Application in your IDE with 1 application argument `<path_to_yarn_config>`
 
  
