@@ -4,11 +4,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.yarn1.YarnClient;
 import org.apache.yarn1.YarnContainerRequest;
 import org.apache.yarn1.YarnMaster;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
 public class HelloYarn1Master extends YarnMaster {
@@ -23,16 +21,11 @@ public class HelloYarn1Master extends YarnMaster {
         Configuration config = new Configuration() {
             {
                 if (args.length == 1) {
-                    String yarnConfigPath = args[0];
-                    System.out.println("Using yarn and hadoop config path: " + yarnConfigPath);
-                    addResource(new FileInputStream(yarnConfigPath + "/core-site.xml"));
-                    addResource(new FileInputStream(yarnConfigPath + "/hdfs-site.xml"));
-                    addResource(new FileInputStream(yarnConfigPath + "/yarn-site.xml"));
+                    set("yarn1.site", args[0]);
                 }
-                set("yarn.name", "HelloYarn1");
-                set("yarn.master.priority", "0");
-                set("yarn.keepContainers", "false");
-                set("yarn.master.queue", "developers");
+                set("yarn1.master.priority", "0");
+                set("yarn1.keepContainers", "false");
+                set("yarn1.master.queue", "developers");
             }
         };
         YarnClient.submitApplicationMaster(config, HelloYarn1Master.class, args, true);

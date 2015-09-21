@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.DataOutput;
 import java.io.DataOutputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 
 /**
@@ -37,13 +38,18 @@ public class YarnClient {
             Boolean awaitCompletion
     ) throws Exception {
 
-        conf.set("yarn.master.class", appClass.getName());
-        String appName = conf.get("yarn.name");
-        String queue = conf.get("yarn.queue");
-        int masterPriority = conf.getInt("yarn.master.priority", 0);
-        int masterMemoryMb = conf.getInt("yarn.master.memory.mb", 256);
-        int masterNumCores = conf.getInt("yarn.master.num.cores", 1);
-        boolean keepContainers = conf.getBoolean("yarn.keepContainers", false);
+        String yarnConfigPath = conf.get("yarn1.site", "/etc/hadoop");
+        conf.addResource(new FileInputStream(yarnConfigPath + "/core-site.xml"));
+        conf.addResource(new FileInputStream(yarnConfigPath + "/hdfs-site.xml"));
+        conf.addResource(new FileInputStream(yarnConfigPath + "/yarn-site.xml"));
+
+        conf.set("yarn1.master.class", appClass.getName());
+        String appName = appClass.getName();
+        String queue = conf.get("yarn1.queue");
+        int masterPriority = conf.getInt("yarn1.master.priority", 0);
+        int masterMemoryMb = conf.getInt("yarn1.master.memory.mb", 256);
+        int masterNumCores = conf.getInt("yarn1.master.num.cores", 1);
+        boolean keepContainers = conf.getBoolean("yarn1.keepContainers", false);
         /**
          * keepKontainers has 2 meanings:
          * 1) yarn uses it to keep containers across attempts

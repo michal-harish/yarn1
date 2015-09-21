@@ -31,8 +31,8 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     public static void main(String[] args) throws Exception {
         try {
             Configuration config = new Yarn1Configuration();
-            Class<? extends YarnMaster> appClass = Class.forName(config.get("yarn.master.class")).asSubclass(YarnMaster.class);
-            Boolean restartCompletedContainers = config.getBoolean("yarn.keepContainers", false);
+            Class<? extends YarnMaster> appClass = Class.forName(config.get("yarn1.master.class")).asSubclass(YarnMaster.class);
+            Boolean restartCompletedContainers = config.getBoolean("yarn1.keepContainers", false);
             log.info("Starting Master Instance: " + appClass.getName() + " with container.autorestart = " + restartCompletedContainers);
             Constructor<? extends YarnMaster> constructor = appClass.getConstructor(Configuration.class);
             YarnMaster master = null;
@@ -75,7 +75,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
 
     private AMRMClientAsync<ContainerRequest> rmClient;
     private NMClient nmClient;
-    private Boolean continuousService;
+    private Boolean autorestartContainer;
     final protected Configuration config;
     final private String appName;
     final private LinkedHashMap<YarnContainer, ContainerRequest> containersToAllocate = Maps.newLinkedHashMap();
@@ -95,8 +95,8 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
      * protected constructor with config is run form the above main() method which will be run inside the yarn
      * app master container
      */
-    public void initializeAsYarn(Boolean continuousService) throws IOException, YarnException {
-        this.continuousService = continuousService;
+    public void initializeAsYarn(Boolean autorestartContainer) throws IOException, YarnException {
+        this.autorestartContainer = autorestartContainer;
         rmClient = AMRMClientAsync.createAMRMClientAsync(100, this);
         rmClient.init(config);
         nmClient = NMClient.createNMClient();
@@ -242,7 +242,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
             if (completedSpec != null) {
                 log.info("Completed container " + status.getContainerId()
                         + ", (exit status " + status.getExitStatus() + ")  " + status.getDiagnostics());
-                if (continuousService) {
+                if (autorestartContainer) {
                     log.info("Auto-restarting container " + completedSpec);
                     requestContainer(completedSpec);
                 }
