@@ -52,14 +52,13 @@ public class YarnClient {
          * 2) yarn1 uses it to autorestart failed containers
          */
 
-        YarnConfiguration yarnConfig = new YarnConfiguration();
-        appConf.loadFromXML(new FileInputStream(yarnConfigPath + "/core-site.xml"));
-        appConf.loadFromXML(new FileInputStream(yarnConfigPath + "/hdfs-site.xml"));
-        appConf.loadFromXML(new FileInputStream(yarnConfigPath + "/yarn-site.xml"));
+        Configuration yarnConfig = new YarnConfiguration();
+        yarnConfig.addResource(new FileInputStream(yarnConfigPath + "/core-site.xml"));
+        yarnConfig.addResource(new FileInputStream(yarnConfigPath + "/hdfs-site.xml"));
+        yarnConfig.addResource(new FileInputStream(yarnConfigPath + "/yarn-site.xml"));
         for (Map.Entry<Object, Object> entry : appConf.entrySet()) {
             yarnConfig.set(entry.getKey().toString(), entry.getValue().toString());
         }
-
 
         final org.apache.hadoop.yarn.client.api.YarnClient yarnClient = org.apache.hadoop.yarn.client.api.YarnClient.createYarnClient();
         yarnClient.init(yarnConfig);
@@ -144,20 +143,6 @@ public class YarnClient {
         }
         yarnClient.stop();
     }
-    public static Properties getAppConfiguration() {
-        try {
-            Properties properties = new Properties() {{
-                load(new FileInputStream("yarn1.configuration"));
-            }};
-            for (Map.Entry<Object, Object> entry : properties.entrySet()) {
-                properties.setProperty(entry.getKey().toString(), entry.getValue().toString());
-            }
-            return properties;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
 
     /**
      * Distribute all dependencies in a single jar both from Client to Master as well as Master to Container(s)
@@ -168,7 +153,7 @@ public class YarnClient {
         //distribute configuration
         final Path dstConfig = new Path(distFs.getHomeDirectory(), appName + ".configuration");
         final FSDataOutputStream fs = distFs.create(dstConfig);
-        appConf.store(fs, "Yarn1 Applicatin Config");
+        appConf.store(fs, "Yarn1 Application Config");
         fs.close();
         log.info("Updated resource " + dstConfig);
 
@@ -203,6 +188,21 @@ public class YarnClient {
         FileStatus scFileStatus = distFs.getFileStatus(dst);
         log.info("Updated resource " + dst + " " + scFileStatus.getLen());
 
+    }
+
+    public static Properties getAppConfiguration() {
+        try {
+            Properties properties = new Properties() {{
+                load(new FileInputStream("yarn1.configuration"));
+            }};
+            for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+                properties.setProperty(entry.getKey().toString(), entry.getValue().toString());
+            }
+            return properties;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
 }
