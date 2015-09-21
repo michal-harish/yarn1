@@ -18,6 +18,7 @@ This is a YARN helper for submitting master and requesting containers by simply 
 - Archiving classes and distribution done under the hood (dependency classes are included after mvn compile)
 - Allows launching of fully distributed YARN application directly from IDE by using the launcher in the test package
 
+
 <a name="quickstart">
 ## Quick start with included example application
 </a>
@@ -25,13 +26,43 @@ This is a YARN helper for submitting master and requesting containers by simply 
 This is in package `org.apache.yarn1.example`
 
 ### Running as `yarn` program
-1. mvn clean package
-2. yarn jar target/yarn1-example.jar
+1. `mvn clean package`
+2. `yarn jar target/yarn1-example.jar <path_to_yarn_config>` 
 
 ### Running from IDE
 1. mvn clean compile - if your IDE doesn't support maven dependency plugin)
 2. run Yarn1Launcher under the test sources as Java Application in your IDE with 1 application argument `<path_to_yarn_config>`
 
+### Developing your own YARN application
+
+One option is to simply copy the yarn1 classes into your codebase or add it as a git submodule:
+
+```bash
+    git submodule --add
+    git submodule update --init    
+```
+
+```pom.xml
+    <plugin>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>2.10</version>
+        <executions>
+            <execution>
+                <id>extract</id>
+                <phase>package</phase>
+                <goals>
+                    <goal>unpack-dependencies</goal>
+                </goals>
+                <configuration>
+                    <outputDirectory>target/classes</outputDirectory>
+                    <includeScope>runtime</includeScope>
+                    <excludeScope>provided</excludeScope>
+                    <includes>**/*.class,**/*.xml,**/*.properties</includes>
+                </configuration>
+            </execution>
+        </executions>
+    </plugin>
+```
  
 <a name="configuration">
 ## Configuration
@@ -61,6 +92,7 @@ WITH SINGLE-NODE LOCAL YARN CLUSTER
 ## Development
 </a>
 
+- in the recursive example of graph stream BSP emit null messages to clear the connections on eviction
 - onNodesUpdated behaviour
 - distribute non-provided dependencies programatically, i.e. without having to run mvn compile first
 

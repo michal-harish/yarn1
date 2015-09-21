@@ -25,6 +25,14 @@ public class YarnClient {
     private static final Logger log = LoggerFactory.getLogger(YarnClient.class);
 
     /**
+     *
+     * @return
+     */
+    public static Configuration getConfiguration() {
+        return new Yarn1Configuration();
+    }
+
+    /**
      * This method should be called by the implementing application static main
      * method. It does all the work around creating a yarn application and
      * submitting the request to the yarn resource manager. The class given in
@@ -74,7 +82,7 @@ public class YarnClient {
             System.exit(2);
         }
 
-        YarnClient.distributeJar(conf, appName);
+        YarnClient.distributeResources(conf, appName);
 
         YarnContainer masterContainer = new YarnContainer(
                 conf, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
@@ -147,7 +155,7 @@ public class YarnClient {
      * @param appName
      * @throws IOException
      */
-    public static void distributeJar(Configuration conf, String appName) throws IOException {
+    public static void distributeResources(Configuration conf, String appName) throws IOException {
         final FileSystem distFs = FileSystem.get(conf);
 
         //distribute configuration

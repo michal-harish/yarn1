@@ -4,14 +4,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.yarn1.YarnClient;
 import org.apache.yarn1.YarnContainerRequest;
 import org.apache.yarn1.YarnMaster;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 
 public class HelloYarn1Master extends YarnMaster {
-
-    private static final Logger log = LoggerFactory.getLogger(HelloYarn1Master.class);
 
     public HelloYarn1Master(Configuration config) throws FileNotFoundException {
         super(config);
@@ -39,7 +35,7 @@ public class HelloYarn1Master extends YarnMaster {
 
     @Override
     protected void onCompletion() {
-        log.info("ALL CONTAINERS COMPLETED");
+        System.out.println("ALL CONTAINERS COMPLETED");
     }
 
 

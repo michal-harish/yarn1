@@ -6,11 +6,9 @@ import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
-import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -19,7 +17,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class YarnMaster implements AMRMClientAsync.CallbackHandler {
+public class YarnMaster {
 
     private static final Logger log = LoggerFactory.getLogger(YarnMaster.class);
 
@@ -84,6 +82,102 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
     final private AtomicBoolean killed = new AtomicBoolean(false);
     final private Map<ContainerId, YarnContainer> runningContainers = Maps.newConcurrentMap();
 
+    final private AMRMClientAsync.CallbackHandler listener = new AMRMClientAsync.CallbackHandler() {
+        @Override
+        public float getProgress() {
+            return YarnMaster.this.getProgress();
+        }
+
+        @Override
+        public void onNodesUpdated(List<NodeReport> updatedNodes) {
+            // TODO suspend - resume behaviour
+            log.warn("NODE STATUS UPDATE NOT IMPLEMENTED");
+        }
+
+        @Override
+        public void onShutdownRequest() {
+            synchronized(killed) {
+                killed.set(true);
+                killed.notify();
+            }
+        }
+
+        @Override
+        public void onError(Throwable e) {
+            log.error("Application Master received onError event", e);
+            synchronized(killed) {
+                killed.set(true);
+                killed.notify();
+            }
+        }
+
+        @Override
+        final public void onContainersAllocated(List<Container> containers) {
+            for (Container container : containers) {
+                try {
+                    Map.Entry<YarnContainer, ContainerRequest> selected = null;
+                    synchronized (containersToAllocate) {
+                        for(Map.Entry<YarnContainer, ContainerRequest> entry: containersToAllocate.entrySet()) {
+                            YarnContainer spec = entry.getKey();
+                            if (spec.isSatisfiedBy(container)) {
+                                if (selected == null) {
+                                    selected = entry;
+                                } else {
+                                    YarnContainer selectedSoFar = selected.getKey();
+                                    if (selectedSoFar.capability.getMemory() > spec.capability.getMemory()
+                                            || selectedSoFar.capability.getVirtualCores() >= spec.capability.getVirtualCores()
+                                            || selectedSoFar.priority.getPriority() >= spec.priority.getPriority()) {
+                                        selected = entry;
+                                    }
+                                }
+                            }
+                        }
+                        if (selected != null) {
+                            rmClient.removeContainerRequest(selected.getValue());
+                            containersToAllocate.remove(selected.getKey());
+                        }
+                    }
+                    if (selected != null) {
+                        YarnContainer spec = selected.getKey();
+                        log.info("Launching Container " + container.getNodeHttpAddress() + " " + container + " to " + spec.mainClass);
+                        log.info(getContainerUrl(container));
+                        nmClient.startContainer(container, spec.createContainerLaunchContext());
+                        runningContainers.put(container.getId(), spec);
+                        log.info("Number of running containers = " + runningContainers.size());
+                    } else {
+                        log.warn("Could not resolve allocated container with outstanding requested specs: " + getContainerUrl(container)
+                                + ", container spec: " + container.getResource() +", priority:" + container.getPriority());
+                        rmClient.releaseAssignedContainer(container.getId());
+                        //FIXME rmClient seems to be re-requesting all the previously requested containers
+                    }
+
+                } catch (Throwable ex) {
+                    log.error("Error while assigning allocated container", ex);
+                    synchronized(killed) {
+                        killed.set(true);
+                        killed.notify();
+                    }
+                }
+            }
+        }
+
+        @Override
+        final public void onContainersCompleted(List<ContainerStatus> statuses) {
+            for (ContainerStatus status : statuses) {
+                YarnContainer completedSpec = runningContainers.remove(status.getContainerId());
+                if (completedSpec != null) {
+                    log.info("Completed container " + status.getContainerId()
+                            + ", (exit status " + status.getExitStatus() + ")  " + status.getDiagnostics());
+                    if (autorestartContainer) {
+                        log.info("Auto-restarting container " + completedSpec);
+                        requestContainer(completedSpec);
+                    }
+                    numCompletedTasks.incrementAndGet();
+                }
+            }
+        }
+    };
+
     /**
      * Default constructor can be used for local execution
      */
@@ -95,16 +189,16 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
      * protected constructor with config is run form the above main() method which will be run inside the yarn
      * app master container
      */
-    public void initializeAsYarn(Boolean autorestartContainer) throws IOException, YarnException {
+    public void initializeAsYarn(Boolean autorestartContainer) throws Exception {
         this.autorestartContainer = autorestartContainer;
-        rmClient = AMRMClientAsync.createAMRMClientAsync(100, this);
+        rmClient = AMRMClientAsync.createAMRMClientAsync(100, listener);
         rmClient.init(config);
         nmClient = NMClient.createNMClient();
         nmClient.init(config);
         rmClient.start();
         rmClient.registerApplicationMaster("", 0, "");
         nmClient.start();
-        YarnClient.distributeJar(config, appName);
+        YarnClient.distributeResources(config, appName);
         // TODO pass host port and url for tracking to a generic guice servlet
     }
 
@@ -112,8 +206,7 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         /** To be implemented by application... **/
     }
 
-    @Override
-    public float getProgress() {
+    protected float getProgress() {
         /** To be overriden by application... - will be invoked at regular intervals**/
         if (numTasks.get() == 0) {
             return 0f;
@@ -126,28 +219,6 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
         /** To be implemented by application... **/
     }
 
-    @Override
-    public void onShutdownRequest() {
-        synchronized(killed) {
-            killed.set(true);
-            killed.notify();
-        }
-    }
-
-    @Override
-    public void onNodesUpdated(List<NodeReport> updatedNodes) {
-        // TODO suspend - resume behaviour
-        log.warn("NODE STATUS UPDATE NOT IMPLEMENTED");
-    }
-
-    @Override
-    public void onError(Throwable e) {
-        log.error("Application Master received onError event", e);
-        synchronized(killed) {
-            killed.set(true);
-            killed.notify();
-        }
-    }
 
     final private void requestContainer(YarnContainer spec) {
         ContainerRequest containerAsk = new ContainerRequest(spec.capability, null, null, spec.priority);
@@ -178,78 +249,10 @@ public class YarnMaster implements AMRMClientAsync.CallbackHandler {
                 containersToAllocate.wait(250);
             }
         }
-
-    }
-
-    @Override
-    final public void onContainersAllocated(List<Container> containers) {
-        for (Container container : containers) {
-            try {
-                Map.Entry<YarnContainer, ContainerRequest> selected = null;
-                synchronized (containersToAllocate) {
-                    for(Map.Entry<YarnContainer, ContainerRequest> entry: containersToAllocate.entrySet()) {
-                        YarnContainer spec = entry.getKey();
-                        if (spec.isSatisfiedBy(container)) {
-                            if (selected == null) {
-                                selected = entry;
-                            } else {
-                                YarnContainer selectedSoFar = selected.getKey();
-                                if (selectedSoFar.capability.getMemory() > spec.capability.getMemory()
-                                        || selectedSoFar.capability.getVirtualCores() >= spec.capability.getVirtualCores()
-                                        || selectedSoFar.priority.getPriority() >= spec.priority.getPriority()) {
-                                    selected = entry;
-                                }
-                            }
-                        }
-                    }
-                    if (selected != null) {
-                        rmClient.removeContainerRequest(selected.getValue());
-                        containersToAllocate.remove(selected.getKey());
-                    }
-                }
-                if (selected != null) {
-                    YarnContainer spec = selected.getKey();
-                    log.info("Launching Container " + container.getNodeHttpAddress() + " " + container + " to " + spec.mainClass);
-                    log.info(getContainerUrl(container));
-                    nmClient.startContainer(container, spec.createContainerLaunchContext());
-                    runningContainers.put(container.getId(), spec);
-                    log.info("Number of running containers = " + runningContainers.size());
-                } else {
-                    log.warn("Could not resolve allocated container with outstanding requested specs: " + getContainerUrl(container)
-                            + ", container spec: " + container.getResource() +", priority:" + container.getPriority());
-                    rmClient.releaseAssignedContainer(container.getId());
-                    //FIXME rmClient seems to be re-requesting all the previously requested containers
-                }
-
-            } catch (Throwable ex) {
-                log.error("Error while assigning allocated container", ex);
-                synchronized(killed) {
-                    killed.set(true);
-                    killed.notify();
-                }
-            }
-        }
     }
 
     private String getContainerUrl(Container container) {
         return "http://" + container.getNodeHttpAddress() + "/node/containerlogs/" + container.getId();
     }
-
-    @Override
-    final public void onContainersCompleted(List<ContainerStatus> statuses) {
-        for (ContainerStatus status : statuses) {
-            YarnContainer completedSpec = runningContainers.remove(status.getContainerId());
-            if (completedSpec != null) {
-                log.info("Completed container " + status.getContainerId()
-                        + ", (exit status " + status.getExitStatus() + ")  " + status.getDiagnostics());
-                if (autorestartContainer) {
-                    log.info("Auto-restarting container " + completedSpec);
-                    requestContainer(completedSpec);
-                }
-                numCompletedTasks.incrementAndGet();
-            }
-        }
-    }
-
 
 }
