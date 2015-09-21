@@ -56,7 +56,7 @@ One option is to simply copy the yarn1 classes into your codebase or add it as a
                 <configuration>
                     <outputDirectory>target/classes</outputDirectory>
                     <includeScope>runtime</includeScope>
-                    <excludeScope>provided</excludeScope>
+                    <excludeGroupIds>org.apache.hadoop</excludeGroupIds>
                     <includes>**/*.class,**/*.xml,**/*.properties</includes>
                 </configuration>
             </execution>

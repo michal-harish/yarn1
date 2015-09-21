@@ -6,14 +6,12 @@ import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -28,9 +26,9 @@ public class YarnMaster {
      */
     public static void main(String[] args) throws Exception {
         try {
-            Configuration config = new Yarn1Configuration();
-            Class<? extends YarnMaster> appClass = Class.forName(config.get("yarn1.master.class")).asSubclass(YarnMaster.class);
-            Boolean restartCompletedContainers = config.getBoolean("yarn1.keepContainers", false);
+            Properties config = YarnClient.getAppConfiguration();
+            Class<? extends YarnMaster> appClass = Class.forName(config.getProperty("yarn1.master.class")).asSubclass(YarnMaster.class);
+            Boolean restartCompletedContainers = Boolean.valueOf(config.getProperty("yarn1.keepContainers", "false"));
             log.info("Starting Master Instance: " + appClass.getName() + " with container.autorestart = " + restartCompletedContainers);
             Constructor<? extends YarnMaster> constructor = appClass.getConstructor(Configuration.class);
             YarnMaster master = null;
@@ -74,7 +72,8 @@ public class YarnMaster {
     private AMRMClientAsync<ContainerRequest> rmClient;
     private NMClient nmClient;
     private Boolean autorestartContainer;
-    final protected Configuration config;
+    final protected Properties appConfig;
+    final private YarnConfiguration yarnConfig;
     final private String appName;
     final private LinkedHashMap<YarnContainer, ContainerRequest> containersToAllocate = Maps.newLinkedHashMap();
     final private AtomicInteger numTasks = new AtomicInteger(0);
@@ -181,9 +180,10 @@ public class YarnMaster {
     /**
      * Default constructor can be used for local execution
      */
-    public YarnMaster(Configuration config) {
+    public YarnMaster(Properties appConfig) {
         this.appName = this.getClass().getSimpleName();
-        this.config = config;
+        this.appConfig = appConfig;
+        this.yarnConfig = new YarnConfiguration();
     }
     /**
      * protected constructor with config is run form the above main() method which will be run inside the yarn
@@ -192,13 +192,13 @@ public class YarnMaster {
     public void initializeAsYarn(Boolean autorestartContainer) throws Exception {
         this.autorestartContainer = autorestartContainer;
         rmClient = AMRMClientAsync.createAMRMClientAsync(100, listener);
-        rmClient.init(config);
+        rmClient.init(yarnConfig);
         nmClient = NMClient.createNMClient();
-        nmClient.init(config);
+        nmClient.init(yarnConfig);
         rmClient.start();
         rmClient.registerApplicationMaster("", 0, "");
         nmClient.start();
-        YarnClient.distributeResources(config, appName);
+        YarnClient.distributeResources(yarnConfig, appConfig, appName);
         // TODO pass host port and url for tracking to a generic guice servlet
     }
 
@@ -240,7 +240,7 @@ public class YarnMaster {
         for(YarnContainerRequest spec: requests) {
             log.info("Requesting container (" + spec.memoryMb + " x " + spec.numCores + ")" + Arrays.asList(spec.args));
             requestContainer(
-                    new YarnContainer(config, spec.priority, spec.memoryMb, spec.numCores, appName, spec.mainClass, spec.args)
+                    new YarnContainer(yarnConfig, spec.priority, spec.memoryMb, spec.numCores, appName, spec.mainClass, spec.args)
             );
         }
         // wait for allocation before requesting other groups

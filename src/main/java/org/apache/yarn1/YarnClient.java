@@ -9,13 +9,13 @@ import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.DataOutput;
-import java.io.DataOutputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
+import java.util.Map;
+import java.util.Properties;
 
 /**
  * Created by mharis on 12/09/15.
@@ -25,14 +25,6 @@ public class YarnClient {
     private static final Logger log = LoggerFactory.getLogger(YarnClient.class);
 
     /**
-     *
-     * @return
-     */
-    public static Configuration getConfiguration() {
-        return new Yarn1Configuration();
-    }
-
-    /**
      * This method should be called by the implementing application static main
      * method. It does all the work around creating a yarn application and
      * submitting the request to the yarn resource manager. The class given in
@@ -40,32 +32,37 @@ public class YarnClient {
      * container.
      */
     public static void submitApplicationMaster(
-            Configuration conf,
+            Properties appConf,
             Class<? extends YarnMaster> appClass,
             String[] args,
             Boolean awaitCompletion
     ) throws Exception {
 
-        String yarnConfigPath = conf.get("yarn1.site", "/etc/hadoop");
-        conf.addResource(new FileInputStream(yarnConfigPath + "/core-site.xml"));
-        conf.addResource(new FileInputStream(yarnConfigPath + "/hdfs-site.xml"));
-        conf.addResource(new FileInputStream(yarnConfigPath + "/yarn-site.xml"));
-
-        conf.set("yarn1.master.class", appClass.getName());
+        String yarnConfigPath = appConf.getProperty("yarn1.site", "/etc/hadoop");
+        appConf.setProperty("yarn1.master.class", appClass.getName());
         String appName = appClass.getName();
-        String queue = conf.get("yarn1.queue");
-        int masterPriority = conf.getInt("yarn1.master.priority", 0);
-        int masterMemoryMb = conf.getInt("yarn1.master.memory.mb", 256);
-        int masterNumCores = conf.getInt("yarn1.master.num.cores", 1);
-        boolean keepContainers = conf.getBoolean("yarn1.keepContainers", false);
+        String queue = appConf.getProperty("yarn1.queue");
+        int masterPriority = Integer.valueOf(appConf.getProperty("yarn1.master.priority", "0"));
+        int masterMemoryMb = Integer.valueOf(appConf.getProperty("yarn1.master.memory.mb", "256"));
+        int masterNumCores = Integer.valueOf(appConf.getProperty("yarn1.master.num.cores", "1"));
+        Boolean keepContainers = Boolean.valueOf(appConf.getProperty("yarn1.keepContainers", "false"));
         /**
          * keepKontainers has 2 meanings:
          * 1) yarn uses it to keep containers across attempts
          * 2) yarn1 uses it to autorestart failed containers
          */
 
+        YarnConfiguration yarnConfig = new YarnConfiguration();
+        appConf.loadFromXML(new FileInputStream(yarnConfigPath + "/core-site.xml"));
+        appConf.loadFromXML(new FileInputStream(yarnConfigPath + "/hdfs-site.xml"));
+        appConf.loadFromXML(new FileInputStream(yarnConfigPath + "/yarn-site.xml"));
+        for (Map.Entry<Object, Object> entry : appConf.entrySet()) {
+            yarnConfig.set(entry.getKey().toString(), entry.getValue().toString());
+        }
+
+
         final org.apache.hadoop.yarn.client.api.YarnClient yarnClient = org.apache.hadoop.yarn.client.api.YarnClient.createYarnClient();
-        yarnClient.init(conf);
+        yarnClient.init(yarnConfig);
         yarnClient.start();
 
         for (NodeReport report : yarnClient.getNodeReports(NodeState.RUNNING)) {
@@ -82,10 +79,10 @@ public class YarnClient {
             System.exit(2);
         }
 
-        YarnClient.distributeResources(conf, appName);
+        YarnClient.distributeResources(yarnConfig, appConf, appName);
 
         YarnContainer masterContainer = new YarnContainer(
-                conf, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
+                yarnConfig, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
 
         ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
         appContext.setKeepContainersAcrossApplicationAttempts(keepContainers);
@@ -147,22 +144,31 @@ public class YarnClient {
         }
         yarnClient.stop();
     }
+    public static Properties getAppConfiguration() {
+        try {
+            Properties properties = new Properties() {{
+                load(new FileInputStream("yarn1.configuration"));
+            }};
+            for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+                properties.setProperty(entry.getKey().toString(), entry.getValue().toString());
+            }
+            return properties;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
     /**
      * Distribute all dependencies in a single jar both from Client to Master as well as Master to Container(s)
-     *
-     * @param conf
-     * @param appName
-     * @throws IOException
      */
-    public static void distributeResources(Configuration conf, String appName) throws IOException {
-        final FileSystem distFs = FileSystem.get(conf);
+    public static void distributeResources(Configuration yarnConf, Properties appConf, String appName) throws IOException {
+        final FileSystem distFs = FileSystem.get(yarnConf);
 
         //distribute configuration
         final Path dstConfig = new Path(distFs.getHomeDirectory(), appName + ".configuration");
         final FSDataOutputStream fs = distFs.create(dstConfig);
-        final DataOutput os = new DataOutputStream(fs);
-        conf.write(os);
+        appConf.store(fs, "Yarn1 Applicatin Config");
         fs.close();
         log.info("Updated resource " + dstConfig);
 
@@ -178,7 +184,7 @@ public class YarnClient {
             log.info("Archiving and distributing local classes from current working directory " + localArchive);
             try {
                 String archiveCommand = "jar cMf " + localArchive + " -C " + localPath + " ./";
-                FileSystem.getLocal(conf).delete(new Path(localArchive), false);
+                FileSystem.getLocal(yarnConf).delete(new Path(localArchive), false);
                 Process archivingProcess = Runtime.getRuntime().exec(archiveCommand);
                 if (archivingProcess.waitFor() != 0) {
                     throw new IOException("Failed to executre tar -C command on: " + localPath);
