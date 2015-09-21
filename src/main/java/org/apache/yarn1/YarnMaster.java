@@ -1,7 +1,6 @@
 package org.apache.yarn1;
 
 import com.google.common.collect.Maps;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.NMClient;
@@ -27,6 +26,10 @@ public class YarnMaster {
     public static void main(String[] args) throws Exception {
         try {
             Properties config = YarnClient.getAppConfiguration();
+            log.info("Yarn1 App Configuration:");
+            for(Object param: config.keySet()) {
+                log.info(param.toString() + " = " + config.get(param).toString());
+            }
             Class<? extends YarnMaster> appClass = Class.forName(config.getProperty("yarn1.master.class")).asSubclass(YarnMaster.class);
             Boolean restartCompletedContainers = Boolean.valueOf(config.getProperty("yarn1.keepContainers", "false"));
             log.info("Starting Master Instance: " + appClass.getName() + " with container.autorestart = " + restartCompletedContainers);
@@ -198,8 +201,6 @@ public class YarnMaster {
         rmClient.start();
         rmClient.registerApplicationMaster("", 0, "");
         nmClient.start();
-        YarnClient.distributeResources(yarnConfig, appConfig, appName);
-        // TODO pass host port and url for tracking to a generic guice servlet
     }
 
     protected void onStartUp(String[] args) throws Exception {
@@ -240,7 +241,7 @@ public class YarnMaster {
         for(YarnContainerRequest spec: requests) {
             log.info("Requesting container (" + spec.memoryMb + " x " + spec.numCores + ")" + Arrays.asList(spec.args));
             requestContainer(
-                    new YarnContainer(yarnConfig, spec.priority, spec.memoryMb, spec.numCores, appName, spec.mainClass, spec.args)
+                new YarnContainer(yarnConfig, appConfig, spec.priority, spec.memoryMb, spec.numCores, appName, spec.mainClass, spec.args)
             );
         }
         // wait for allocation before requesting other groups

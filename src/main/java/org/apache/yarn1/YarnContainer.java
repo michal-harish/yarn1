@@ -20,6 +20,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 public class YarnContainer {
 
@@ -28,17 +29,20 @@ public class YarnContainer {
     final public Priority priority;
     final public Class<?> mainClass;
     final public String mainClassName;
-    final private Configuration conf;
+    final private Configuration yarnConfig;
+    final private Properties appConfig;
 
     final private String[] args;
     private static final Logger log = LoggerFactory.getLogger(YarnContainer.class);
 
     public YarnContainer(
-            Configuration conf, int priority, int memoryMb, int numCores, String appName, Class<?> mainClass, String[] args
+            Configuration yarnConfig, Properties appConfig,
+            int priority, int memoryMb, int numCores, String appName, Class<?> mainClass, String[] args
     ) throws Exception {
-        this.conf = conf;
-        this.conf.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
-        this.conf.set("fs.file.impl", org.apache.hadoop.fs.LocalFileSystem.class.getName());
+        this.appConfig = appConfig;
+        this.yarnConfig = yarnConfig;
+        this.yarnConfig.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
+        this.yarnConfig.set("fs.file.impl", org.apache.hadoop.fs.LocalFileSystem.class.getName());
 
         this.jarName = appName + ".jar";
         this.mainClass = mainClass;
@@ -68,13 +72,13 @@ public class YarnContainer {
         StringBuilder classPathEnv = new StringBuilder(Environment.CLASSPATH.$());
         classPathEnv.append(":"); // ApplicationConstants.CLASS_PATH_SEPARATOR
         classPathEnv.append(Environment.PWD.$());
-        for (String c : conf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH, YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
+        for (String c : yarnConfig.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH, YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
             classPathEnv.append(":");// ApplicationConstants.CLASS_PATH_SEPARATOR
             classPathEnv.append(c.trim());
         }
-        if (conf.get("yarn1.classpath") != null) {
+        if (appConfig.containsKey("yarn1.classpath")) {
             classPathEnv.append(":");
-            classPathEnv.append(conf.get("yarn1.classpath").trim());
+            classPathEnv.append(appConfig.getProperty("yarn1.classpath").trim());
         }
         Map<String, String> env = Maps.newHashMap();
         env.put(Environment.CLASSPATH.name(), classPathEnv.toString());
@@ -93,7 +97,7 @@ public class YarnContainer {
 
     private Map<String, LocalResource> prepareLocalResources() throws IOException {
         Map<String, LocalResource> localResources = Maps.newHashMap();
-        FileSystem distFs = FileSystem.get(conf);
+        FileSystem distFs = FileSystem.get(yarnConfig);
 
         prepareLocalResourceFile(localResources, jarName, jarName, distFs);
         prepareLocalResourceFile(localResources, "yarn1.configuration", jarName.replace(".jar", ".configuration"), distFs);

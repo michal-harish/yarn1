@@ -18,7 +18,6 @@ This is a YARN helper for submitting master and requesting containers by simply 
 - Archiving classes and distribution done under the hood (dependency classes are included after mvn compile)
 - Allows launching of fully distributed YARN application directly from IDE by using the launcher in the test package
 
-
 <a name="quickstart">
 ## Quick start with included example application
 </a>
@@ -90,8 +89,8 @@ WITH SINGLE-NODE LOCAL YARN CLUSTER
 <a name="development">
 ## Development
 </a>
-
-- in the recursive example of graph stream BSP emit null messages to clear the connections on eviction
+- YARN deployment is dependent on maven dependency plugin for unpacking compile scope - it is hooked to package phase
+- hdfs.homeDirectory() of the current user is used to distribute jar and application config but this could be configurable
 - onNodesUpdated behaviour
 - distribute non-provided dependencies programatically, i.e. without having to run mvn compile first
 

@@ -32,26 +32,32 @@ public class YarnClient {
      * container.
      */
     public static void submitApplicationMaster(
-            Properties appConf,
+            Properties appConfig,
             Class<? extends YarnMaster> appClass,
             String[] args,
             Boolean awaitCompletion
     ) throws Exception {
 
-        String yarnConfigPath = appConf.getProperty("yarn1.site", "/etc/hadoop");
-        appConf.setProperty("yarn1.master.class", appClass.getName());
+        log.info("Yarn1 App Configuration:");
+        for(Object param: appConfig.keySet()) {
+            log.info(param.toString() + " = " + appConfig.get(param).toString());
+        }
+        log.info("------------------------");
+
+        String yarnConfigPath = appConfig.getProperty("yarn1.site", "/etc/hadoop");
+        appConfig.setProperty("yarn1.master.class", appClass.getName());
         String appName = appClass.getName();
-        String queue = appConf.getProperty("yarn1.queue");
-        int masterPriority = Integer.valueOf(appConf.getProperty("yarn1.master.priority", "0"));
-        int masterMemoryMb = Integer.valueOf(appConf.getProperty("yarn1.master.memory.mb", "256"));
-        int masterNumCores = Integer.valueOf(appConf.getProperty("yarn1.master.num.cores", "1"));
-        Boolean keepContainers = Boolean.valueOf(appConf.getProperty("yarn1.keepContainers", "false"));
+        String queue = appConfig.getProperty("yarn1.queue");
+        int masterPriority = Integer.valueOf(appConfig.getProperty("yarn1.master.priority", "0"));
+        int masterMemoryMb = Integer.valueOf(appConfig.getProperty("yarn1.master.memory.mb", "256"));
+        int masterNumCores = Integer.valueOf(appConfig.getProperty("yarn1.master.num.cores", "1"));
+        Boolean keepContainers = Boolean.valueOf(appConfig.getProperty("yarn1.keepContainers", "false"));
 
         Configuration yarnConfig = new YarnConfiguration();
         yarnConfig.addResource(new FileInputStream(yarnConfigPath + "/core-site.xml"));
         yarnConfig.addResource(new FileInputStream(yarnConfigPath + "/hdfs-site.xml"));
         yarnConfig.addResource(new FileInputStream(yarnConfigPath + "/yarn-site.xml"));
-        for (Map.Entry<Object, Object> entry : appConf.entrySet()) {
+        for (Map.Entry<Object, Object> entry : appConfig.entrySet()) {
             yarnConfig.set(entry.getKey().toString(), entry.getValue().toString());
         }
 
@@ -73,10 +79,10 @@ public class YarnClient {
             System.exit(2);
         }
 
-        YarnClient.distributeResources(yarnConfig, appConf, appName);
+        YarnClient.distributeResources(yarnConfig, appConfig, appName);
 
         YarnContainer masterContainer = new YarnContainer(
-                yarnConfig, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
+            yarnConfig, appConfig, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
 
         ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
         appContext.setApplicationName(appName);
@@ -147,7 +153,7 @@ public class YarnClient {
         //distribute configuration
         final Path dstConfig = new Path(distFs.getHomeDirectory(), appName + ".configuration");
         final FSDataOutputStream fs = distFs.create(dstConfig);
-        appConf.store(fs, "Yarn1 Application Config");
+        appConf.store(fs, "Yarn1 Application Config for " + appName);
         fs.close();
         log.info("Updated resource " + dstConfig);
 
