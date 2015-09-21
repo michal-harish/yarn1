@@ -46,11 +46,6 @@ public class YarnClient {
         int masterMemoryMb = Integer.valueOf(appConf.getProperty("yarn1.master.memory.mb", "256"));
         int masterNumCores = Integer.valueOf(appConf.getProperty("yarn1.master.num.cores", "1"));
         Boolean keepContainers = Boolean.valueOf(appConf.getProperty("yarn1.keepContainers", "false"));
-        /**
-         * keepKontainers has 2 meanings:
-         * 1) yarn uses it to keep containers across attempts
-         * 2) yarn1 uses it to autorestart failed containers
-         */
 
         Configuration yarnConfig = new YarnConfiguration();
         yarnConfig.addResource(new FileInputStream(yarnConfigPath + "/core-site.xml"));
@@ -84,7 +79,6 @@ public class YarnClient {
                 yarnConfig, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
 
         ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
-        appContext.setKeepContainersAcrossApplicationAttempts(keepContainers);
         appContext.setApplicationName(appName);
         appContext.setResource(masterContainer.capability);
         appContext.setPriority(masterContainer.priority);

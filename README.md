@@ -56,7 +56,6 @@ One option is to simply copy the yarn1 classes into your codebase or add it as a
                 <configuration>
                     <outputDirectory>target/classes</outputDirectory>
                     <includeScope>runtime</includeScope>
-                    <excludeGroupIds>org.apache.hadoop</excludeGroupIds>
                     <includes>**/*.class,**/*.xml,**/*.properties</includes>
                 </configuration>
             </execution>
@@ -72,7 +71,7 @@ parameter                   | default       | description
 ----------------------------|---------------|---------------------------------------------------------------------------
 **yarn1.site**              | `/etc/hadoop` | Local path where the application is launched pointing to yarn (and hdfs-hadoop configuration) files. This path should contain at least these files: `yarn-site.xml`, `hdfs-site.xml`, `core-site.xml`
 **yarn1.queue**             | -             | YARN scheduling queue name
-**yarn1.keepContainers**    | `false`       | If set to `true` any failed container will be auto matically restarted (and also any containers that haven't failed will be kept across attempts).
+**yarn1.keepContainers**    | `false`       | If set to `true` any failed container will be automatically restarted.
 yarn1.master.priority       | `0`           | Priority for the Application Master (`0-10`)
 yarn1.master.memory.mb      | `256`         | Memory in megabytes for the Application Master
 yarn1.master.num.cores      | `1`           | Number of virtual cores for the Application Master

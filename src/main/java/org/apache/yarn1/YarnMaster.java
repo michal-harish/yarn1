@@ -30,7 +30,7 @@ public class YarnMaster {
             Class<? extends YarnMaster> appClass = Class.forName(config.getProperty("yarn1.master.class")).asSubclass(YarnMaster.class);
             Boolean restartCompletedContainers = Boolean.valueOf(config.getProperty("yarn1.keepContainers", "false"));
             log.info("Starting Master Instance: " + appClass.getName() + " with container.autorestart = " + restartCompletedContainers);
-            Constructor<? extends YarnMaster> constructor = appClass.getConstructor(Configuration.class);
+            Constructor<? extends YarnMaster> constructor = appClass.getConstructor(Properties.class);
             YarnMaster master = null;
             try {
                 master = constructor.newInstance(config);

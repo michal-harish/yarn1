@@ -2,39 +2,28 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.apache.yarn1</groupId>
-    <artifactId>yarn1-exec</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <properties>
-        <hadoop.version>2.3.0-cdh5.0.3</hadoop.version>
-    </properties>
+    <artifactId>yarn1</artifactId>
+    <version>2.3.0</version>
     <dependencies>
-        <!-- hadoop/yarn dependencies which will be excluded in the host application and treated as provided -->
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-yarn-client</artifactId>
-            <version>${hadoop.version}</version>
-            <scope>compile</scope>
+            <version>${project.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
-            <version>${hadoop.version}</version>
-            <scope>compile</scope>
+            <version>${project.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-hdfs</artifactId>
-            <version>${hadoop.version}</version>
-            <scope>compile</scope>
+            <version>${project.version}</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
-
-    <repositories>
-        <repository>
-            <id>cloudera</id>
-            <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
-        </repository>
-    </repositories>
 
     <build>
         <resources>
@@ -67,7 +56,6 @@
                         <configuration>
                             <outputDirectory>target/classes</outputDirectory>
                             <includeScope>runtime</includeScope>
-                            <excludeGroupIds>org.apache.hadoop</excludeGroupIds>
                             <includes>**/*.class,**/*.xml,**/*.properties</includes>
                         </configuration>
                     </execution>
