@@ -202,7 +202,7 @@ public class YarnClient {
     private static void executeShell(String command) throws IOException, InterruptedException {
         Process shellProcess = Runtime.getRuntime().exec(command);
         if (shellProcess.waitFor() != 0) {
-            throw new IOException("Failed to execute tar -C command: " + command);
+            throw new IOException("Failed to command: " + command);
         }
     }
 

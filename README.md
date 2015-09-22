@@ -26,7 +26,7 @@ This is in package `org.apache.yarn1.example`
 
 ### Running as `yarn` program
 1. `mvn clean package`
-2. `yarn jar target/yarn1-example.jar <path_to_yarn_config>` 
+2. `./scripts/submit.example`  - see the script for details
 
 ### Running from IDE
 1. mvn clean compile - if your IDE doesn't support maven dependency plugin)
@@ -34,7 +34,7 @@ This is in package `org.apache.yarn1.example`
 
 ### Developing your own YARN application
 
-One option is to simply copy the yarn1 classes into your codebase or add it as a git submodule:
+One option is to simply copy the yarn1 classes and dependencies into your project, the other is to add it as a git submodule:
 
 ```bash
     git submodule --add
@@ -42,13 +42,19 @@ One option is to simply copy the yarn1 classes into your codebase or add it as a
 ```
 
 ```pom.xml
+    <modules>
+        ...
+        <module>yarn1</module>
+        ...
+    </modules>
+    ...
     <plugin>
         <artifactId>maven-dependency-plugin</artifactId>
         <version>2.10</version>
         <executions>
             <execution>
                 <id>extract</id>
-                <phase>package</phase>
+                <phase>generate-sources</phase>
                 <goals>
                     <goal>unpack-dependencies</goal>
                 </goals>
@@ -60,6 +66,7 @@ One option is to simply copy the yarn1 classes into your codebase or add it as a
             </execution>
         </executions>
     </plugin>
+    ...
 ```
  
 <a name="configuration">

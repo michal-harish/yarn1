@@ -1,0 +1,2 @@
+#!/bin/bash
+java -cp `yarn classpath`:target/HelloYarn1-2.3.0.jar org.apache.yarn1.example.HelloYarn1Master org.apache.yarn1.example.HelloYarn1Master "$@"
