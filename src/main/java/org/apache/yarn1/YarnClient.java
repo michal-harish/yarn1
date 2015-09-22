@@ -39,7 +39,7 @@ public class YarnClient {
     ) throws Exception {
 
         log.info("Yarn1 App Configuration:");
-        for(Object param: appConfig.keySet()) {
+        for (Object param : appConfig.keySet()) {
             log.info(param.toString() + " = " + appConfig.get(param).toString());
         }
         log.info("------------------------");
@@ -68,7 +68,6 @@ public class YarnClient {
         for (NodeReport report : yarnClient.getNodeReports(NodeState.RUNNING)) {
             log.debug("Node report:" + report.getNodeId() + " @ " + report.getHttpAddress() + " | " + report.getCapability());
         }
-        //TODO check if appName already running and config yarn.master.failifexists
 
         log.info("Submitting application master class " + appClass.getName() + " with keepContainers = " + keepContainers);
 
@@ -82,7 +81,7 @@ public class YarnClient {
         YarnClient.distributeResources(yarnConfig, appConfig, appName);
 
         YarnContainer masterContainer = new YarnContainer(
-            yarnConfig, appConfig, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
+                yarnConfig, appConfig, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
 
         ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
         appContext.setApplicationName(appName);
@@ -106,8 +105,6 @@ public class YarnClient {
                             yarnClient.killApplication(appId);
                         } catch (Throwable e) {
                             e.printStackTrace(System.out);
-                        } finally {
-                            //yarnClient.stop();
                         }
                     }
                 }
@@ -166,10 +163,11 @@ public class YarnClient {
             src = new Path(localPath);
         } else {
             try {
+                String localArchive = localPath + appName + ".jar";
+                FileSystem.getLocal(yarnConf).delete(new Path(localArchive), false);
                 log.info("Unpacking compile scope dependencies: " + localPath);
                 executeShell("mvn -f " + localPath + "/../.. generate-sources");
-                String localArchive = localPath + appName + ".jar";
-                log.info("Archiving and distributing local classes from current working directory into " + localArchive);
+                log.info("Preparing application main jar " + localArchive);
                 executeShell("jar cMf " + localArchive + " -C " + localPath + " ./");
                 src = new Path(localArchive);
 

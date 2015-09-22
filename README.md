@@ -89,7 +89,7 @@ WITH SINGLE-NODE LOCAL YARN CLUSTER
 <a name="development">
 ## Development
 </a>
-- YARN deployment requires 'jar' and 'mvn' installed for unpacking of compile scope dependencies
+- YARN deployment requires 'mvn' command for unpacking of compile scope dependencies and 'jar' command for creating the main jar 
 - hdfs.homeDirectory() of the current user is used to distribute jar and application config but this could be configurable
-- onNodesUpdated behaviour
+- YarnMaster.onNodesUpdated behaviour
 

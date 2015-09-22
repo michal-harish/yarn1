@@ -92,8 +92,7 @@ public class YarnMaster {
 
         @Override
         public void onNodesUpdated(List<NodeReport> updatedNodes) {
-            // TODO suspend - resume behaviour
-            log.warn("NODE STATUS UPDATE NOT IMPLEMENTED");
+            log.warn("TODO - NODE STATUS UPDATE NOT IMPLEMENTED");
         }
 
         @Override
@@ -150,7 +149,7 @@ public class YarnMaster {
                         log.warn("Could not resolve allocated container with outstanding requested specs: " + getContainerUrl(container)
                                 + ", container spec: " + container.getResource() +", priority:" + container.getPriority());
                         rmClient.releaseAssignedContainer(container.getId());
-                        //FIXME rmClient seems to be re-requesting all the previously requested containers
+                        //FIXME rmClient still seems to be re-requesting all the previously requested containers
                     }
 
                 } catch (Throwable ex) {
@@ -184,7 +183,7 @@ public class YarnMaster {
      * Default constructor can be used for local execution
      */
     public YarnMaster(Properties appConfig) {
-        this.appName = this.getClass().getSimpleName();
+        this.appName = this.getClass().getName();
         this.appConfig = appConfig;
         this.yarnConfig = new YarnConfiguration();
     }
@@ -201,6 +200,7 @@ public class YarnMaster {
         rmClient.start();
         rmClient.registerApplicationMaster("", 0, "");
         nmClient.start();
+        YarnClient.distributeResources(yarnConfig, appConfig, appName);
     }
 
     protected void onStartUp(String[] args) throws Exception {
@@ -221,7 +221,7 @@ public class YarnMaster {
     }
 
 
-    final private void requestContainer(YarnContainer spec) {
+    private void requestContainer(YarnContainer spec) {
         ContainerRequest containerAsk = new ContainerRequest(spec.capability, null, null, spec.priority);
         synchronized (containersToAllocate) {
             containersToAllocate.put(spec, containerAsk);
