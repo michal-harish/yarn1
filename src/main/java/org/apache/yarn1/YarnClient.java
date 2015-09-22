@@ -165,16 +165,12 @@ public class YarnClient {
             log.info("Distributing local jar : " + localPath);
             src = new Path(localPath);
         } else {
-            String localArchive = localPath + appName + ".jar";
-            log.info("Archiving and distributing local classes from current working directory " + localArchive);
             try {
-                String archiveCommand = "jar cMf " + localArchive + " -C " + localPath + " ./";
-                FileSystem.getLocal(yarnConf).delete(new Path(localArchive), false);
-                Process archivingProcess = Runtime.getRuntime().exec(archiveCommand);
-                if (archivingProcess.waitFor() != 0) {
-                    throw new IOException("Failed to executre tar -C command on: " + localPath);
-                }
-
+                log.info("Unpacking compile scope dependencies: " + localPath);
+                executeShell("mvn -f " + localPath + "/../.. generate-sources");
+                String localArchive = localPath + appName + ".jar";
+                log.info("Archiving and distributing local classes from current working directory into " + localArchive);
+                executeShell("jar cMf " + localArchive + " -C " + localPath + " ./");
                 src = new Path(localArchive);
 
             } catch (InterruptedException e) {
@@ -202,6 +198,13 @@ public class YarnClient {
         } catch (Exception e) {
             e.printStackTrace();
             return null;
+        }
+    }
+
+    private static void executeShell(String command) throws IOException, InterruptedException {
+        Process shellProcess = Runtime.getRuntime().exec(command);
+        if (shellProcess.waitFor() != 0) {
+            throw new IOException("Failed to execute tar -C command: " + command);
         }
     }
 

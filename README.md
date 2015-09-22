@@ -89,8 +89,7 @@ WITH SINGLE-NODE LOCAL YARN CLUSTER
 <a name="development">
 ## Development
 </a>
-- YARN deployment is dependent on maven dependency plugin for unpacking compile scope - it is hooked to package phase
+- YARN deployment requires 'jar' and 'mvn' installed for unpacking of compile scope dependencies
 - hdfs.homeDirectory() of the current user is used to distribute jar and application config but this could be configurable
 - onNodesUpdated behaviour
-- distribute non-provided dependencies programatically, i.e. without having to run mvn compile first
 
