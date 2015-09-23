@@ -1,5 +1,8 @@
 # Simple YARN Executor
 
+- **Author**: 2015 © Michal Harish (michal.harish AT gmail.com) 
+- **License**: [GNU LGPL-3.0](LICENSE) 
+
 This is a YARN helper for submitting master and requesting containers by simply giving a class. At the moment this is based on hadoop/yarn 2.3.0-cdh5.0.3
 
 1. [Features](#features)

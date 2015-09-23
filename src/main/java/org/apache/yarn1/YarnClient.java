@@ -1,5 +1,22 @@
 package org.apache.yarn1;
 
+/**
+ * Yarn1 - Java Library for Apache YARN
+ * Copyright (C) 2015 Michal Harish
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -13,13 +30,11 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 
-/**
- * Created by mharis on 12/09/15.
- */
 public class YarnClient {
 
     private static final Logger log = LoggerFactory.getLogger(YarnClient.class);
@@ -37,7 +52,6 @@ public class YarnClient {
             String[] args,
             Boolean awaitCompletion
     ) throws Exception {
-
         log.info("Yarn1 App Configuration:");
         for (Object param : appConfig.keySet()) {
             log.info(param.toString() + " = " + appConfig.get(param).toString());
@@ -104,7 +118,7 @@ public class YarnClient {
                         try {
                             yarnClient.killApplication(appId);
                         } catch (Throwable e) {
-                            e.printStackTrace(System.out);
+                            log.error("Failed to kill yarn application - please check YARN Resource Manager", e);
                         }
                     }
                 }
@@ -194,7 +208,7 @@ public class YarnClient {
             }
             return properties;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to load localised configuration for yarn1 context", e);
             return null;
         }
     }
