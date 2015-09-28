@@ -101,5 +101,7 @@ WITH SINGLE-NODE LOCAL YARN CLUSTER
 </a>
 - YARN deployment requires 'mvn' command for unpacking of compile scope dependencies and 'jar' command for creating the main jar 
 - hdfs.homeDirectory() of the current user is used to distribute jar and application config but this could be configurable
+- expose running containers list and onContainerAllocated for application to register its own servers etc.
 - YarnMaster.onNodesUpdated behaviour
+
 
