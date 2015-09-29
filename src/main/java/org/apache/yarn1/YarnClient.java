@@ -7,21 +7,19 @@ package org.apache.yarn1;
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * <p/>
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ * <p/>
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.*;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.*;
@@ -30,8 +28,14 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
 
@@ -160,42 +164,82 @@ public class YarnClient {
      */
     public static void distributeResources(Configuration yarnConf, Properties appConf, String appName) throws IOException {
         final FileSystem distFs = FileSystem.get(yarnConf);
+        final FileSystem localFs = FileSystem.getLocal(yarnConf);
+        try {
 
-        //distribute configuration
-        final Path dstConfig = new Path(distFs.getHomeDirectory(), appName + ".configuration");
-        final FSDataOutputStream fs = distFs.create(dstConfig);
-        appConf.store(fs, "Yarn1 Application Config for " + appName);
-        fs.close();
-        log.info("Updated resource " + dstConfig);
+            //distribute configuration
+            final Path dstConfig = new Path(distFs.getHomeDirectory(), appName + ".configuration");
+            final FSDataOutputStream fs = distFs.create(dstConfig);
+            appConf.store(fs, "Yarn1 Application Config for " + appName);
+            fs.close();
+            log.info("Updated resource " + dstConfig);
 
-        //distribute main jar
-        final String localPath = YarnClient.class.getProtectionDomain().getCodeSource().getLocation().getFile().replace(".jar/", ".jar");
-        final Path src;
-        final String jarName = appName + ".jar";
-        if (localPath.endsWith(".jar")) {
-            log.info("Distributing local jar : " + localPath);
-            src = new Path(localPath);
-        } else {
-            try {
-                String localArchive = localPath + appName + ".jar";
-                FileSystem.getLocal(yarnConf).delete(new Path(localArchive), false);
-                log.info("Unpacking compile scope dependencies: " + localPath);
-                executeShell("mvn -f " + localPath + "/../.. generate-sources");
-                log.info("Preparing application main jar " + localArchive);
-                executeShell("jar cMf " + localArchive + " -C " + localPath + " ./");
-                src = new Path(localArchive);
+            //distribute main jar
+            final String localPath = YarnClient.class.getProtectionDomain().getCodeSource().getLocation().getFile().replace(".jar/", ".jar");
+            final Path src;
+            final String jarName = appName + ".jar";
+            if (localPath.endsWith(".jar")) {
+                log.info("Distributing local jar : " + localPath);
+                src = new Path(localPath);
+            } else {
+                try {
+                    String localArchive = localPath + appName + ".jar";
+                    localFs.delete(new Path(localArchive), false);
+                    log.info("Unpacking compile scope dependencies: " + localPath);
+                    executeShell("mvn -f " + localPath + "/../.. generate-sources");
+                    log.info("Preparing application main jar " + localArchive);
+                    executeShell("jar cMf " + localArchive + " -C " + localPath + " ./");
+                    src = new Path(localArchive);
 
-            } catch (InterruptedException e) {
-                throw new IOException(e);
+                } catch (InterruptedException e) {
+                    throw new IOException(e);
+                }
             }
-        }
-        //distribute jar
-        final Path dst = new Path(distFs.getHomeDirectory(), jarName);
-        log.info("Updating resource " + dst + " ...");
-        distFs.copyFromLocalFile(false, true, src, dst);
-        FileStatus scFileStatus = distFs.getFileStatus(dst);
-        log.info("Updated resource " + dst + " " + scFileStatus.getLen());
 
+            byte[] digest;
+            final MessageDigest md = MessageDigest.getInstance("MD5");
+            try (InputStream is = new FileInputStream(src.toString())) {
+                DigestInputStream dis = new DigestInputStream(is, md);
+                byte[] buffer = new byte[8192];
+                int numOfBytesRead;
+                while ((numOfBytesRead = dis.read(buffer)) > 0) {
+                    md.update(buffer, 0, numOfBytesRead);
+                }
+                digest = md.digest();
+            }
+            log.info("Local check sum: " + Hex.encodeHexString(digest));
+
+            final Path dst = new Path(distFs.getHomeDirectory(), jarName);
+            Path remoteChecksumFile = new Path(distFs.getHomeDirectory(), jarName + ".md5");
+            boolean checksumMatches = false;
+            if (distFs.isFile(remoteChecksumFile)) {
+                try (InputStream r = distFs.open(remoteChecksumFile)) {
+                    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                    int nRead;
+                    byte[] data = new byte[1024];
+                    while ((nRead = r.read(data, 0, data.length)) != -1) {
+                        buffer.write(data, 0, nRead);
+                    }
+                    buffer.flush();
+                    byte[] remoteDigest = buffer.toByteArray();
+                    log.info("Remote check sum: " + Hex.encodeHexString(remoteDigest));
+                    checksumMatches = Arrays.equals(digest, remoteDigest);
+
+                }
+            }
+            if (!checksumMatches) {
+                log.info("Updating resource " + dst + " ...");
+                distFs.copyFromLocalFile(false, true, src, dst);
+                try (FSDataOutputStream remoteChecksumStream = distFs.create(remoteChecksumFile)) {
+                    log.info("Updating checksum " + remoteChecksumFile + " ...");
+                    remoteChecksumStream.write(digest);
+                }
+                FileStatus scFileStatus = distFs.getFileStatus(dst);
+                log.info("Updated resource " + dst + " " + scFileStatus.getLen());
+            }
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException(e);
+        }
     }
 
     public static Properties getAppConfiguration() {
