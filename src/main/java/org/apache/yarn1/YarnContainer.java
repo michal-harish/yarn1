@@ -98,14 +98,23 @@ public class YarnContainer {
             classPathEnv.append(appConfig.getProperty("yarn1.classpath").trim());
         }
         Map<String, String> env = Maps.newHashMap();
+        for(Map.Entry<Object, Object> e: appConfig.entrySet()) {
+            String key = e.getKey().toString();
+            String value = e.getValue().toString();
+            if (key.startsWith("yarn1.env.")) {
+                log.info("$" + key.substring(10) + " = " + value);
+                env.put(key.substring(10), value);
+            }
+        }
         env.put(Environment.CLASSPATH.name(), classPathEnv.toString());
-        log.info("$CLASSPATH = " + classPathEnv.toString() );
+        log.info("$CLASSPATH = " + classPathEnv.toString());
         return env;
 
     }
 
     private List<String> prepareCommands() {
-        String command = "java -cp $CLASSPATH:./" + jarName + " " + mainClassName + " " + StringUtils.join(" ", args);
+        String jvmArgs = appConfig.getProperty("yarn1.jvm.args", "");
+        String command = "java " + jvmArgs + " -cp $CLASSPATH:./" + jarName + " " + mainClassName + " " + StringUtils.join(" ", args);
         command += " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout";
         command += " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr";
         log.info("$COMMAND = " + command);

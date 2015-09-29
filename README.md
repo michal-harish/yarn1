@@ -85,6 +85,8 @@ yarn1.master.priority       | `0`           | Priority for the Application Maste
 yarn1.master.memory.mb      | `256`         | Memory in megabytes for the Application Master
 yarn1.master.num.cores      | `1`           | Number of virtual cores for the Application Master
 yarn1.classpath             | -             | Optional colon-separated list of extra jars and paths available on YARN nodes locally for all containers and application master $CLASSPATH. This allows for large dependency libraries to be declared in scope `provided` and will not be distributed as part of container main jar, e.g. `opt/scala/scala-library-2.10.4.jar:/opt/scala/kafka_2.10-0.8.2.1.jar`.
+yarn1.jvm.args              | -             | Optional JVM Options for each task
+yarn1.env.<VARIABLE>        | -             | Optional Environment Variable(s) for each task
 
 <a name="operations">
 ## Operations
