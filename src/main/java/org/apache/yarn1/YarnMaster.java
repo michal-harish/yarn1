@@ -72,20 +72,20 @@ public class YarnMaster {
                         try {
                             master.rmClient.unregisterApplicationMaster(FinalApplicationStatus.KILLED, "", "");
                         } finally {
-                            System.exit(3);
+                            System.exit(103);
                         }
                     }
                 }
                 master.rmClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, "", "");
             } catch (Throwable e) {
                 e.printStackTrace();
-                System.exit(2);
+                System.exit(102);
             } finally {
                 if (master != null) master.onCompletion();
             }
         } catch (Throwable e) {
             e.printStackTrace(System.out);
-            System.exit(1);
+            System.exit(101);
         }
     }
 

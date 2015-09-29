@@ -93,7 +93,7 @@ public class YarnClient {
         GetNewApplicationResponse appResponse = app.getNewApplicationResponse();
         final ApplicationId appId = appResponse.getApplicationId();
         if (appId == null) {
-            System.exit(2);
+            System.exit(111);
         }
 
         YarnClient.distributeResources(yarnConfig, appConfig, appName);
@@ -153,7 +153,7 @@ public class YarnClient {
             yarnClient.stop();
 
             if (!report.getFinalApplicationStatus().equals(FinalApplicationStatus.SUCCEEDED)) {
-                System.exit(1);
+                System.exit(112);
             }
         }
         yarnClient.stop();
