@@ -84,7 +84,7 @@ public class YarnMaster {
                 if (master != null) master.onCompletion();
             }
         } catch (Throwable e) {
-            e.printStackTrace(System.out);
+            e.printStackTrace();
             System.exit(101);
         }
     }
