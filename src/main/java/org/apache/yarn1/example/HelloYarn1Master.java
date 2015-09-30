@@ -19,9 +19,10 @@ public class HelloYarn1Master extends YarnMaster {
                 if (args.length == 1) {
                     setProperty("yarn1.site", args[0]);
                 }
-                setProperty("yarn1.master.priority", "0");
+                setProperty("yarn1.master.priority", "1");
                 setProperty("yarn1.keepContainers", "false");
-                setProperty("yarn1.master.queue", "developers");
+                setProperty("yarn1.queue", "developers");
+                setProperty("yarn1.task.priority", "0");
             }
         };
         YarnClient.submitApplicationMaster(config, HelloYarn1Master.class, args, true);
