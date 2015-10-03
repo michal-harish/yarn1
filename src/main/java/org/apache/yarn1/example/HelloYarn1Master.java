@@ -20,7 +20,7 @@ public class HelloYarn1Master extends YarnMaster {
                     setProperty("yarn1.site", args[0]);
                 }
                 setProperty("yarn1.master.priority", "1");
-                setProperty("yarn1.keepContainers", "false");
+                setProperty("yarn1.keep.containers", "false");
                 setProperty("yarn1.queue", "developers");
                 setProperty("yarn1.task.priority", "0");
             }

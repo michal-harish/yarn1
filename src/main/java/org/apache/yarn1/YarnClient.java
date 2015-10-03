@@ -69,7 +69,6 @@ public class YarnClient {
         int masterPriority = Integer.valueOf(appConfig.getProperty("yarn1.master.priority", "0"));
         int masterMemoryMb = Integer.valueOf(appConfig.getProperty("yarn1.master.memory.mb", "256"));
         int masterNumCores = Integer.valueOf(appConfig.getProperty("yarn1.master.num.cores", "1"));
-        Boolean keepContainers = Boolean.valueOf(appConfig.getProperty("yarn1.keepContainers", "false"));
 
         Configuration yarnConfig = new YarnConfiguration();
         yarnConfig.addResource(new FileInputStream(yarnConfigPath + "/core-site.xml"));
@@ -87,7 +86,7 @@ public class YarnClient {
             log.debug("Node report:" + report.getNodeId() + " @ " + report.getHttpAddress() + " | " + report.getCapability());
         }
 
-        log.info("Submitting application master class " + appClass.getName() + " with keepContainers = " + keepContainers);
+        log.info("Submitting application master class " + appClass.getName());
 
         YarnClientApplication app = yarnClient.createApplication();
         GetNewApplicationResponse appResponse = app.getNewApplicationResponse();

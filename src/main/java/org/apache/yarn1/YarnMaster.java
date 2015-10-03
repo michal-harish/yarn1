@@ -7,12 +7,12 @@ package org.apache.yarn1;
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * <p/>
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ * <p/>
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -44,17 +44,16 @@ public class YarnMaster {
         try {
             Properties config = YarnClient.getAppConfiguration();
             log.info("Yarn1 App Configuration:");
-            for(Object param: config.keySet()) {
+            for (Object param : config.keySet()) {
                 log.info(param.toString() + " = " + config.get(param).toString());
             }
             Class<? extends YarnMaster> appClass = Class.forName(config.getProperty("yarn1.master.class")).asSubclass(YarnMaster.class);
-            Boolean restartCompletedContainers = Boolean.valueOf(config.getProperty("yarn1.keepContainers", "false"));
-            log.info("Starting Master Instance: " + appClass.getName() + " with container.autorestart = " + restartCompletedContainers);
+            log.info("Starting Master Instance: " + appClass.getName());
             Constructor<? extends YarnMaster> constructor = appClass.getConstructor(Properties.class);
             YarnMaster master = null;
             try {
                 master = constructor.newInstance(config);
-                master.initializeAsYarn(restartCompletedContainers);
+                master.initializeAsYarn();
                 /**
                  * The application master instance now has an opportunity to
                  * request containers it needs in the onStartUp(args), e.g.to request 16 containers,
@@ -65,7 +64,7 @@ public class YarnMaster {
                  */
                 master.onStartUp(args);
                 while (master.numTasks.get() > master.numCompletedTasks.get()) {
-                    synchronized(master.killed) {
+                    synchronized (master.killed) {
                         master.killed.wait(10000);
                     }
                     if (master.killed.get()) {
@@ -91,7 +90,8 @@ public class YarnMaster {
 
     private AMRMClientAsync<ContainerRequest> rmClient;
     private NMClient nmClient;
-    private Boolean autorestartContainer;
+    private Boolean restartEnabled;
+    private Integer restartFailedRetries;
     final protected Properties appConfig;
     final private YarnConfiguration yarnConfig;
     final private String appName;
@@ -114,7 +114,7 @@ public class YarnMaster {
 
         @Override
         public void onShutdownRequest() {
-            synchronized(killed) {
+            synchronized (killed) {
                 killed.set(true);
                 killed.notify();
             }
@@ -123,7 +123,7 @@ public class YarnMaster {
         @Override
         public void onError(Throwable e) {
             log.error("Application Master received onError event", e);
-            synchronized(killed) {
+            synchronized (killed) {
                 killed.set(true);
                 killed.notify();
             }
@@ -135,7 +135,7 @@ public class YarnMaster {
                 try {
                     Map.Entry<YarnContainer, ContainerRequest> selected = null;
                     synchronized (containersToAllocate) {
-                        for(Map.Entry<YarnContainer, ContainerRequest> entry: containersToAllocate.entrySet()) {
+                        for (Map.Entry<YarnContainer, ContainerRequest> entry : containersToAllocate.entrySet()) {
                             YarnContainer spec = entry.getKey();
                             if (spec.isSatisfiedBy(container)) {
                                 if (selected == null) {
@@ -164,14 +164,14 @@ public class YarnMaster {
                         log.info("Number of running containers = " + runningContainers.size());
                     } else {
                         log.warn("Could not resolve allocated container with outstanding requested specs: " + getContainerUrl(container)
-                                + ", container spec: " + container.getResource() +", priority:" + container.getPriority());
+                                + ", container spec: " + container.getResource() + ", priority:" + container.getPriority());
                         rmClient.releaseAssignedContainer(container.getId());
                         //FIXME rmClient still seems to be re-requesting all the previously requested containers
                     }
 
                 } catch (Throwable ex) {
                     log.error("Error while assigning allocated container", ex);
-                    synchronized(killed) {
+                    synchronized (killed) {
                         killed.set(true);
                         killed.notify();
                     }
@@ -186,9 +186,17 @@ public class YarnMaster {
                 if (completedSpec != null) {
                     log.info("Completed container " + status.getContainerId()
                             + ", (exit status " + status.getExitStatus() + ")  " + status.getDiagnostics());
-                    if (autorestartContainer) {
-                        log.info("Auto-restarting container " + completedSpec);
-                        requestContainer(completedSpec);
+                    if (restartEnabled) {
+                        if (status.getExitStatus() > 0 && completedSpec.incrementAndGetNumFailures() > restartFailedRetries) {
+                            log.warn("Container failed more than " + restartFailedRetries + " times, killing application");
+                            synchronized (killed) {
+                                killed.set(true);
+                                killed.notify();
+                            }
+                        } else {
+                            log.info("Auto-restarting container " + completedSpec);
+                            requestContainer(completedSpec);
+                        }
                     }
                     numCompletedTasks.incrementAndGet();
                 }
@@ -204,12 +212,14 @@ public class YarnMaster {
         this.appConfig = appConfig;
         this.yarnConfig = new YarnConfiguration();
     }
+
     /**
      * protected constructor with config is run form the above main() method which will be run inside the yarn
      * app master container
      */
-    public void initializeAsYarn(Boolean autorestartContainer) throws Exception {
-        this.autorestartContainer = autorestartContainer;
+    public void initializeAsYarn() throws Exception {
+        this.restartEnabled = Boolean.valueOf(appConfig.getProperty("yarn1.restart.enabled", "false"));
+        this.restartFailedRetries = Integer.valueOf(appConfig.getProperty("yarn1.restart.failed.retries", "5"));
         rmClient = AMRMClientAsync.createAMRMClientAsync(100, listener);
         rmClient.init(yarnConfig);
         nmClient = NMClient.createNMClient();
@@ -254,8 +264,9 @@ public class YarnMaster {
         }
         requestContainerGroup(requests);
     }
+
     final protected void requestContainerGroup(YarnContainerRequest[] requests) throws Exception {
-        for(YarnContainerRequest spec: requests) {
+        for (YarnContainerRequest spec : requests) {
             log.info("Requesting container (" + spec.memoryMb + " x " + spec.numCores + ")" + Arrays.asList(spec.args));
             requestContainer(
                 new YarnContainer(yarnConfig, appConfig, spec.priority, spec.memoryMb, spec.numCores, appName, spec.mainClass, spec.args)

@@ -51,6 +51,7 @@ public class YarnContainer {
 
     final private String[] args;
     private static final Logger log = LoggerFactory.getLogger(YarnContainer.class);
+    private int numFailures = 0;
 
     public YarnContainer(
             Configuration yarnConfig, Properties appConfig,
@@ -141,5 +142,10 @@ public class YarnContainer {
                 yarnUrl, LocalResourceType.FILE, LocalResourceVisibility.APPLICATION,
                 scFileStatus.getLen(), scFileStatus.getModificationTime());
         localResources.put(fileName, scRsrc);
+    }
+
+    public int incrementAndGetNumFailures() {
+        this.numFailures +=1;
+        return numFailures;
     }
 }
