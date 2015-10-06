@@ -268,8 +268,9 @@ public class YarnMaster {
     final protected void requestContainerGroup(YarnContainerRequest[] requests) throws Exception {
         for (YarnContainerRequest spec : requests) {
             log.info("Requesting container (" + spec.memoryMb + " x " + spec.numCores + ")" + Arrays.asList(spec.args));
+            String jvmArgs = appConfig.getProperty("yarn1.jvm.args", "");
             requestContainer(
-                new YarnContainer(yarnConfig, appConfig, spec.priority, spec.memoryMb, spec.numCores, appName, spec.mainClass, spec.args)
+                new YarnContainer(yarnConfig, appConfig, jvmArgs, spec.priority, spec.memoryMb, spec.numCores, appName, spec.mainClass, spec.args)
             );
         }
         // wait for allocation before requesting other groups

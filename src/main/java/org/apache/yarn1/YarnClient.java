@@ -97,8 +97,9 @@ public class YarnClient {
 
         YarnClient.distributeResources(yarnConfig, appConfig, appName);
 
+        String masterJvmArgs = appConfig.getProperty("yarn1.master.jvm.args", "");
         YarnContainer masterContainer = new YarnContainer(
-                yarnConfig, appConfig, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
+                yarnConfig, appConfig, masterJvmArgs, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
 
         ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
         appContext.setApplicationName(appName);

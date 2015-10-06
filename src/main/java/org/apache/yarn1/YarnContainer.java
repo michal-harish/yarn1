@@ -50,15 +50,18 @@ public class YarnContainer {
     final private Properties appConfig;
 
     final private String[] args;
+    final private String jvmArgs;
     private static final Logger log = LoggerFactory.getLogger(YarnContainer.class);
     private int numFailures = 0;
 
     public YarnContainer(
             Configuration yarnConfig, Properties appConfig,
+            String jvmArgs,
             int priority, int memoryMb, int numCores, String appName, Class<?> mainClass, String[] args
     ) throws Exception {
         this.appConfig = appConfig;
         this.yarnConfig = yarnConfig;
+        this.jvmArgs = jvmArgs;
         this.yarnConfig.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
         this.yarnConfig.set("fs.file.impl", org.apache.hadoop.fs.LocalFileSystem.class.getName());
 
@@ -114,7 +117,6 @@ public class YarnContainer {
     }
 
     private List<String> prepareCommands() {
-        String jvmArgs = appConfig.getProperty("yarn1.jvm.args", "");
         String command = "java " + jvmArgs + " -cp $CLASSPATH:./" + jarName + " " + mainClassName + " " + StringUtils.join(" ", args);
         command += " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout";
         command += " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr";
