@@ -83,7 +83,7 @@ parameter                       | default       | description
 **yarn1.restart.failed.retries**| 5             | If restart.enabled is `true` any container that completes with non-zero exit status more than `failed.retries` time will cause the entire application to fail
 yarn1.queue                     | -             | YARN scheduling queue name for master as well as containers
 yarn1.classpath                 | -             | Optional colon-separated list of extra jars and paths available on YARN nodes locally for all containers and application master $CLASSPATH. This allows for large dependency libraries to be declared in scope `provided` and will not be distributed as part of container main jar, e.g. `opt/scala/scala-library-2.10.4.jar:/opt/scala/kafka_2.10-0.8.2.1.jar`.
-yarn1.jvm.args                  | -             | Optional JVM arguments for each task, e.g. `-XX:+UseSerialGC -XX:NewRatio=3`
+yarn1.jvm.args                  | -             | Extra JVM arguments besides the main memory which is managed under the hood as calculated from direct+heap memory as given in each container request, , e.g. `-XX:+UseSerialGC -XX:NewRatio=3`
 yarn1.env.<VARIABLE>            | -             | Optional Environment Variable(s) for each task
 yarn1.master.priority           | `0`           | Priority for the Application Master (`0-10`)
 yarn1.master.memory.mb          | `256`         | Memory in megabytes for the Application Master

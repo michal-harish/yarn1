@@ -21,14 +21,16 @@ public class YarnContainerRequest {
     public final Class<?> mainClass;
     public final String[] args;
     public final int priority;
-    public final int memoryMb;
+    public final int directMemMb;
     public final int numCores;
+    public final int heapMemMb;
 
-    public YarnContainerRequest(Class<?> mainClass, String[] args, int priority, int memoryMb, int numCores) {
+    public YarnContainerRequest(Class<?> mainClass, String[] args, int priority, int directMemoryMb, int heapMemoryMb, int numCores) {
         this.mainClass = mainClass;
         this.args = args;
         this.priority = priority;
-        this.memoryMb = memoryMb;
+        this.directMemMb = directMemoryMb;
+        this.heapMemMb = heapMemoryMb;
         this.numCores = numCores;
     }
 }

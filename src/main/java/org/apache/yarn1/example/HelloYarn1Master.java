@@ -30,8 +30,8 @@ public class HelloYarn1Master extends YarnMaster {
 
     @Override
     protected void onStartUp(String[] args) throws Exception {
-        requestContainerGroup(2, new YarnContainerRequest(HelloYarn1WorkerA.class, args, 3, 1024, 1));
-        requestContainerGroup(2, new YarnContainerRequest(HelloYarn1WorkerB.class, args, 2, 512, 1));
+        requestContainerGroup(2, new YarnContainerRequest(HelloYarn1WorkerA.class, args, 3, 0, 1024, 1));
+        requestContainerGroup(2, new YarnContainerRequest(HelloYarn1WorkerB.class, args, 2, 0, 512, 1));
     }
 
     @Override
