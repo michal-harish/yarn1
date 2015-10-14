@@ -213,11 +213,7 @@ public class YarnMaster {
         this.yarnConfig = new YarnConfiguration();
     }
 
-    /**
-     * protected constructor with config is run form the above main() method which will be run inside the yarn
-     * app master container
-     */
-    public void initializeAsYarn() throws Exception {
+    private void initializeAsYarn() throws Exception {
         this.restartEnabled = Boolean.valueOf(appConfig.getProperty("yarn1.restart.enabled", "false"));
         this.restartFailedRetries = Integer.valueOf(appConfig.getProperty("yarn1.restart.failed.retries", "5"));
         rmClient = AMRMClientAsync.createAMRMClientAsync(100, listener);
