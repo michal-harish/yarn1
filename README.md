@@ -29,7 +29,7 @@ This is in package `org.apache.yarn1.example`
 
 ### Running as `yarn` program
 1. `mvn clean package`
-2. `./scripts/submit.example`  - see the script for details
+2. `./scripts/submit.example <PATH_TO_HADOOP_YARN_CONFIG>`  - see the script for details
 
 ### Running from IDE
 1. mvn clean compile - if your IDE doesn't support maven dependency plugin)
@@ -45,19 +45,50 @@ One option is to simply copy the yarn1 classes and dependencies into your projec
 ```
 
 ```pom.xml
-    <modules>
-        ...
-        <module>yarn1</module>
-        ...
-    </modules>
+<modules>
     ...
+    <module>yarn1</module>
+    ...
+</modules>
+<plugins>
+    ...
+    <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+            <execution>
+                <id>add-source</id>
+                <phase>generate-sources</phase>
+                <goals>
+                    <goal>add-source</goal>
+                </goals>
+                <configuration>
+                    <sources>
+                        <source>yarn1/src/main/java</source>
+                    </sources>
+                </configuration>
+            </execution>
+            <execution>
+                <id>add-test-source</id>
+                <phase>generate-test-sources</phase>
+                <goals>
+                    <goal>add-test-source</goal>
+                </goals>
+                <configuration>
+                    <sources>
+                        <source>yarn1/src/test/java</source>
+                    </sources>
+                </configuration>
+            </execution>
+        </executions>
+    </plugin>
     <plugin>
         <artifactId>maven-dependency-plugin</artifactId>
         <version>2.10</version>
         <executions>
             <execution>
                 <id>extract</id>
-                <phase>generate-sources</phase>
+                <phase>compile</phase>
                 <goals>
                     <goal>unpack-dependencies</goal>
                 </goals>
@@ -69,7 +100,7 @@ One option is to simply copy the yarn1 classes and dependencies into your projec
             </execution>
         </executions>
     </plugin>
-    ...
+</plugins>
 ```
  
 <a name="configuration">
@@ -103,6 +134,7 @@ WITH SINGLE-NODE LOCAL YARN CLUSTER
 <a name="development">
 ## Development
 </a>
+- use standard HADOOP_YARN_HOME environmental variable instead of combination of args and yarn1.site config
 - YARN deployment requires 'mvn' command for unpacking of compile scope dependencies and 'jar' command for creating the main jar 
 - hdfs.homeDirectory() of the current user is used to distribute jar and application config but this could be configurable
 - expose running containers list and onContainerAllocated for application to register its own servers etc.

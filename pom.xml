@@ -42,14 +42,13 @@
                     <target>1.7</target>
                 </configuration>
             </plugin>
-            <!-- FOLLOWING PLUGINS ARE FOR THE EXAMPLE APPLICATION -->
             <plugin>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <version>2.10</version>
                 <executions>
                     <execution>
                         <id>extract</id>
-                        <phase>generate-sources</phase>
+                        <phase>compile</phase>
                         <goals>
                             <goal>unpack-dependencies</goal>
                         </goals>
@@ -57,30 +56,6 @@
                             <outputDirectory>target/classes</outputDirectory>
                             <includeScope>runtime</includeScope>
                             <includes>**/*.class,**/*.xml,**/*.properties</includes>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>1.5</version>
-                <executions>
-                    <execution>
-                        <id>SubmitJar</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <shadedArtifactAttached>false</shadedArtifactAttached>
-                            <finalName>HelloYarn1-${project.version}</finalName>
-                            <transformers>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                                    <resource>reference.conf</resource>
-                                </transformer>
-                            </transformers>
                         </configuration>
                     </execution>
                 </executions>
