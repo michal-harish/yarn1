@@ -112,9 +112,10 @@ parameter                       | default       | description
 **yarn1.site**                  | `/etc/hadoop` | Local path where the application is launched pointing to yarn (and hdfs-hadoop configuration) files. This path should contain at least these files: `yarn-site.xml`, `hdfs-site.xml`, `core-site.xml`
 **yarn1.restart.enabled**       | `false`       | If set to `true` any completed or failed containers will be automatically restarted.
 **yarn1.restart.failed.retries**| 5             | If restart.enabled is `true` any container that completes with non-zero exit status more than `failed.retries` time will cause the entire application to fail
-yarn1.queue                     | -             | YARN scheduling queue name for master as well as containers
+yarn1.application.type          | `YARN`        | Application type to be registered with the Resource Manager
 yarn1.classpath                 | -             | Optional colon-separated list of extra jars and paths available on YARN nodes locally for all containers and application master $CLASSPATH. This allows for large dependency libraries to be declared in scope `provided` and will not be distributed as part of container main jar, e.g. `opt/scala/scala-library-2.10.4.jar:/opt/scala/kafka_2.10-0.8.2.1.jar`.
 yarn1.jvm.args                  | -             | Extra JVM arguments besides the main memory which is managed under the hood as calculated from direct+heap memory as given in each container request, , e.g. `-XX:+UseSerialGC -XX:NewRatio=3`
+yarn1.queue                     | -             | YARN scheduling queue name for master as well as containers
 yarn1.env.<VARIABLE>            | -             | Optional Environment Variable(s) for each task
 yarn1.master.priority           | `0`           | Priority for the Application Master (`0-10`)
 yarn1.master.memory.mb          | `256`         | Memory in megabytes for the Application Master
@@ -134,9 +135,10 @@ WITH SINGLE-NODE LOCAL YARN CLUSTER
 <a name="development">
 ## Development
 </a>
+- distributing jar uses main class name on the target so the identical jar will be copied multiple times when several components are launched 
+- hdfs could be completely avoided - also hdfs.homeDirectory() of the current user is used right now
 - use standard HADOOP_YARN_HOME environmental variable instead of combination of args and yarn1.site config
 - YARN deployment requires 'mvn' command for unpacking of compile scope dependencies and 'jar' command for creating the main jar 
-- hdfs.homeDirectory() of the current user is used to distribute jar and application config but this could be configurable
 - expose running containers list and onContainerAllocated for application to register its own servers etc.
 - YarnMaster.onNodesUpdated behaviour
 

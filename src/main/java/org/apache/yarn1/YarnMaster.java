@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -88,10 +89,6 @@ public class YarnMaster {
         }
     }
 
-    private AMRMClientAsync<ContainerRequest> rmClient;
-    private NMClient nmClient;
-    private Boolean restartEnabled;
-    private Integer restartFailedRetries;
     final protected Properties appConfig;
     final private YarnConfiguration yarnConfig;
     final private String appName;
@@ -100,7 +97,7 @@ public class YarnMaster {
     final private AtomicInteger numCompletedTasks = new AtomicInteger(0);
     final private AtomicBoolean killed = new AtomicBoolean(false);
     final private Map<ContainerId, YarnContainer> runningContainers = Maps.newConcurrentMap();
-
+    //TODO final private Map<ContainerId, Container> completedContainers = Maps.newConcurrentMap();
     final private AMRMClientAsync.CallbackHandler listener = new AMRMClientAsync.CallbackHandler() {
         @Override
         public float getProgress() {
@@ -158,13 +155,13 @@ public class YarnMaster {
                     if (selected != null) {
                         YarnContainer spec = selected.getKey();
                         log.info("Launching Container " + container.getNodeHttpAddress() + " " + container + " to " + spec.mainClass);
-                        log.info(getContainerUrl(container));
                         nmClient.startContainer(container, spec.createContainerLaunchContext());
+                        spec.assignContainer(container);
+                        log.info(spec.getLogsUrl());
                         runningContainers.put(container.getId(), spec);
                         log.info("Number of running containers = " + runningContainers.size());
                     } else {
-                        log.warn("Could not resolve allocated container with outstanding requested specs: " + getContainerUrl(container)
-                                + ", container spec: " + container.getResource() + ", priority:" + container.getPriority());
+                        log.warn("Could not resolve allocated container with outstanding requested spec: " + container.getResource() + ", priority:" + container.getPriority());
                         rmClient.releaseAssignedContainer(container.getId());
                         //FIXME rmClient still seems to be re-requesting all the previously requested containers
                     }
@@ -203,6 +200,11 @@ public class YarnMaster {
             }
         }
     };
+    private AMRMClientAsync<ContainerRequest> rmClient;
+    private NMClient nmClient;
+    private Boolean restartEnabled;
+    private Integer restartFailedRetries;
+    private ApplicationId appId;
 
     /**
      * Default constructor can be used for local execution
@@ -216,14 +218,25 @@ public class YarnMaster {
     private void initializeAsYarn() throws Exception {
         this.restartEnabled = Boolean.valueOf(appConfig.getProperty("yarn1.restart.enabled", "false"));
         this.restartFailedRetries = Integer.valueOf(appConfig.getProperty("yarn1.restart.failed.retries", "5"));
+        this.appId = ApplicationId.newInstance(
+                Long.parseLong(appConfig.getProperty("am.timestamp")),
+                Integer.parseInt(appConfig.getProperty("am.id")));
+        log.info("APPLICATION ID: " + appId.toString());
+        URL trackingUrl = getTrackingURL();
+        log.info("APPLICATION TRACKING URL: " + trackingUrl);
         rmClient = AMRMClientAsync.createAMRMClientAsync(100, listener);
         rmClient.init(yarnConfig);
         nmClient = NMClient.createNMClient();
         nmClient.init(yarnConfig);
         rmClient.start();
-        rmClient.registerApplicationMaster("", 0, "");
+        rmClient.registerApplicationMaster("", 0, trackingUrl == null ? null : trackingUrl.toString());
         nmClient.start();
         YarnClient.distributeResources(yarnConfig, appConfig, appName);
+    }
+
+    protected java.net.URL getTrackingURL() {
+        /** To be implemented by application... **/
+        return null;
     }
 
     protected void onStartUp(String[] args) throws Exception {
@@ -278,8 +291,8 @@ public class YarnMaster {
         }
     }
 
-    private String getContainerUrl(Container container) {
-        return "http://" + container.getNodeHttpAddress() + "/node/containerlogs/" + container.getId();
+    public Map<ContainerId, YarnContainer> getRunningContainers() {
+        return Collections.unmodifiableMap(runningContainers);
     }
 
 }

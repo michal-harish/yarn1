@@ -41,18 +41,20 @@ import java.util.Properties;
 
 public class YarnContainer {
 
-    final private String jarName;
-    final public Resource capability;
-    final public Priority priority;
+    private static final Logger log = LoggerFactory.getLogger(YarnContainer.class);
+
     final public Class<?> mainClass;
     final public String mainClassName;
+    final public String[] args;
+    final public String jvmArgs;
+    final public Resource capability;
+    final public Priority priority;
+
     final private Configuration yarnConfig;
     final private Properties appConfig;
-
-    final private String[] args;
-    final private String jvmArgs;
-    private static final Logger log = LoggerFactory.getLogger(YarnContainer.class);
+    final private String jarName;
     private int numFailures = 0;
+    private Container container;
 
     public YarnContainer(
             Configuration yarnConfig, Properties appConfig,
@@ -149,5 +151,20 @@ public class YarnContainer {
     public int incrementAndGetNumFailures() {
         this.numFailures +=1;
         return numFailures;
+    }
+
+    public void assignContainer(Container container) {
+        this.container = container;
+    }
+
+    public String getUrl() {
+        return container == null ? "N/A" : "http://" + container.getNodeHttpAddress();
+    }
+    public String getLogsUrl() {
+        return container == null ? "N/A"
+                : "http://" + container.getNodeHttpAddress() + "/node/containerlogs/" + container.getId();
+    }
+    public String getLogsUrl(String std) {
+        return container == null ? "N/A" : getLogsUrl() + "/"+std+"/"+std+"/?start=-4096";
     }
 }
