@@ -93,6 +93,9 @@ public class YarnClient {
         final ApplicationId appId = appResponse.getApplicationId();
         if (appId == null) {
             System.exit(111);
+        } else {
+            appConfig.setProperty("am.timestamp", String.valueOf(appId.getClusterTimestamp()));
+            appConfig.setProperty("am.id", String.valueOf(appId.getId()));
         }
 
         YarnClient.distributeResources(yarnConfig, appConfig, appName);
@@ -106,6 +109,7 @@ public class YarnClient {
         appContext.setResource(masterContainer.capability);
         appContext.setPriority(masterContainer.priority);
         appContext.setQueue(queue);
+        appContext.setApplicationType(appConfig.getProperty("yarn1.application.type", "YARN"));
         appContext.setAMContainerSpec(masterContainer.createContainerLaunchContext());
 
         yarnClient.submitApplication(appContext);
@@ -186,7 +190,7 @@ public class YarnClient {
                     String localArchive = localPath + appName + ".jar";
                     localFs.delete(new Path(localArchive), false);
                     log.info("Unpacking compile scope dependencies: " + localPath);
-                    executeShell("mvn -f " + localPath + "/../.. generate-sources");
+                    executeShell("mvn -f " + localPath + "/../.. generate-resources");
                     log.info("Preparing application main jar " + localArchive);
                     executeShell("jar cMf " + localArchive + " -C " + localPath + " ./");
                     src = new Path(localArchive);
