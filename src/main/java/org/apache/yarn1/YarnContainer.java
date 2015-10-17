@@ -55,6 +55,7 @@ public class YarnContainer {
     final private String jarName;
     private int numFailures = 0;
     private Container container;
+    private ContainerStatus status;
 
     public YarnContainer(
             Configuration yarnConfig, Properties appConfig,
@@ -166,5 +167,13 @@ public class YarnContainer {
     }
     public String getLogsUrl(String std) {
         return container == null ? "N/A" : getLogsUrl() + "/"+std+"/"+std+"/?start=-4096";
+    }
+
+    public void assignStatus(ContainerStatus status) {
+        this.status = status;
+    }
+
+    public ContainerStatus getStatus() {
+        return this.status;
     }
 }

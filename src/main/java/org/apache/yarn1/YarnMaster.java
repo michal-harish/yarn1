@@ -97,7 +97,7 @@ public class YarnMaster {
     final private AtomicInteger numCompletedTasks = new AtomicInteger(0);
     final private AtomicBoolean killed = new AtomicBoolean(false);
     final private Map<ContainerId, YarnContainer> runningContainers = Maps.newConcurrentMap();
-    //TODO final private Map<ContainerId, Container> completedContainers = Maps.newConcurrentMap();
+    final private Map<ContainerId, YarnContainer> completedContainers = Maps.newConcurrentMap();
     final private AMRMClientAsync.CallbackHandler listener = new AMRMClientAsync.CallbackHandler() {
         @Override
         public float getProgress() {
@@ -183,6 +183,8 @@ public class YarnMaster {
                 if (completedSpec != null) {
                     log.info("Completed container " + status.getContainerId()
                             + ", (exit status " + status.getExitStatus() + ")  " + status.getDiagnostics());
+                    completedSpec.assignStatus(status);
+                    completedContainers.put(status.getContainerId(), completedSpec);
                     if (restartEnabled) {
                         if (status.getExitStatus() > 0 && completedSpec.incrementAndGetNumFailures() > restartFailedRetries) {
                             log.warn("Container failed more than " + restartFailedRetries + " times, killing application");
@@ -222,19 +224,25 @@ public class YarnMaster {
                 Long.parseLong(appConfig.getProperty("am.timestamp")),
                 Integer.parseInt(appConfig.getProperty("am.id")));
         log.info("APPLICATION ID: " + appId.toString());
-        URL trackingUrl = getTrackingURL();
-        log.info("APPLICATION TRACKING URL: " + trackingUrl);
         rmClient = AMRMClientAsync.createAMRMClientAsync(100, listener);
         rmClient.init(yarnConfig);
         nmClient = NMClient.createNMClient();
         nmClient.init(yarnConfig);
         rmClient.start();
+        URL trackingUrl = getTrackingURL(null, 0);
+        log.info("APPLICATION TRACKING URL: " + trackingUrl);
         rmClient.registerApplicationMaster("", 0, trackingUrl == null ? null : trackingUrl.toString());
         nmClient.start();
         YarnClient.distributeResources(yarnConfig, appConfig, appName);
     }
 
-    protected java.net.URL getTrackingURL() {
+    /**
+     * delegate tracking url (and the server backing it) to the application
+     * @param prefHost preferred hostname, if null then the choice is down to the implementation
+     * @param prefPort preferred port, if -1 or 0 then the choice is down to the implementation
+     * @return
+     */
+    protected java.net.URL getTrackingURL(String prefHost, int prefPort) {
         /** To be implemented by application... **/
         return null;
     }
@@ -293,6 +301,10 @@ public class YarnMaster {
 
     public Map<ContainerId, YarnContainer> getRunningContainers() {
         return Collections.unmodifiableMap(runningContainers);
+    }
+
+    public Map<ContainerId, YarnContainer> getCompletedContainers() {
+        return Collections.unmodifiableMap(completedContainers);
     }
 
 }
