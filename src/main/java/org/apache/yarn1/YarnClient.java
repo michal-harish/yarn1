@@ -139,8 +139,8 @@ public class YarnClient {
 
             float lastProgress = -0.0f;
             while (true) {
-                Thread.sleep(1000);
                 try {
+                    Thread.sleep(10000);
                     report = yarnClient.getApplicationReport(appId);
                     if (lastProgress != report.getProgress()) {
                         lastProgress = report.getProgress();
