@@ -158,15 +158,15 @@ public class YarnContainer {
         this.container = container;
     }
 
-    public String getUrl() {
-        return container == null ? "N/A" : "http://" + container.getNodeHttpAddress();
+    public String getNodeAddress() {
+        return container == null ? "N/A" : container.getNodeHttpAddress();
     }
     public String getLogsUrl() {
         return container == null ? "N/A"
                 : "http://" + container.getNodeHttpAddress() + "/node/containerlogs/" + container.getId();
     }
-    public String getLogsUrl(String std) {
-        return container == null ? "N/A" : getLogsUrl() + "/"+std+"/"+std+"/?start=-4096";
+    public String getLogsUrl(String out) {
+        return container == null ? "N/A" : getLogsUrl() + "/"+out+"/"+out+"/?start=-4096";
     }
 
     public void assignStatus(ContainerStatus status) {
