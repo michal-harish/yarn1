@@ -63,13 +63,18 @@ public class YarnClient {
         for (Object param : appConfig.keySet()) {
             log.info(param.toString() + " = " + appConfig.get(param).toString());
         }
-        log.info("------------------------");
-
         String yarnConfigPath = appConfig.getProperty("yarn1.site", "/etc/hadoop");
         appConfig.setProperty("yarn1.master.class", appClass.getName());
+        log.info("------------------------");
+
+        if (Boolean.valueOf(appConfig.getProperty("yarn1.local.mode","false"))) {
+            YarnMaster.run(appConfig, args);
+            return;
+        }
+
         String appName = appClass.getName();
         String queue = appConfig.getProperty("yarn1.queue");
-        int masterPriority = Integer.valueOf(appConfig.getProperty("yarn1.master.priority", String.valueOf(YarnMaster.DEFAULT_MASTER_PRIORTY)));
+        int masterPriority = Integer.valueOf(appConfig.getProperty("yarn1.master.priority", String.valueOf(YarnMaster.DEFAULT_MASTER_PRIORITY)));
         int masterMemoryMb = Integer.valueOf(appConfig.getProperty("yarn1.master.memory.mb", String.valueOf(YarnMaster.DEFAULT_MASTER_MEMORY_MB)));
         int masterNumCores = Integer.valueOf(appConfig.getProperty("yarn1.master.num.cores", String.valueOf(YarnMaster.DEFAULT_MASTER_CORES)));
 
@@ -104,7 +109,7 @@ public class YarnClient {
         YarnClient.distributeResources(yarnConfig, appConfig, appName);
 
         String masterJvmArgs = appConfig.getProperty("yarn1.master.jvm.args", "");
-        YarnContainer masterContainer = new YarnContainer(
+        YarnContainerContext masterContainer = new YarnContainerContext(
                 yarnConfig, appConfig, masterJvmArgs, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
 
         ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();

@@ -23,13 +23,17 @@ import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -39,7 +43,7 @@ public class YarnMaster {
 
     static final int DEFAULT_MASTER_MEMORY_MB = 256;
     static final int DEFAULT_MASTER_CORES = 1;
-    static final int DEFAULT_MASTER_PRIORTY = 0;
+    static final int DEFAULT_MASTER_PRIORITY = 0;
 
     /**
      * Static Main method will be executed in the ApplicationMaster container as
@@ -47,8 +51,13 @@ public class YarnMaster {
      * actually create an instance of the class passed as the first argument
      */
     public static void main(String[] args) throws Exception {
+        Properties config = YarnClient.getAppConfiguration();
+        run(config, args);
+    }
+
+    public static void run(Properties config, String[] args) throws Exception {
         try {
-            Properties config = YarnClient.getAppConfiguration();
+
             log.info("Yarn1 App Configuration:");
             for (Object param : config.keySet()) {
                 log.info(param.toString() + " = " + config.get(param).toString());
@@ -59,7 +68,7 @@ public class YarnMaster {
             YarnMaster master = null;
             try {
                 master = constructor.newInstance(config);
-                master.initializeAsYarn();
+                master.initialize();
                 /**
                  * The application master instance now has an opportunity to
                  * request containers it needs in the onStartUp(args), e.g.to request 16 containers,
@@ -81,7 +90,7 @@ public class YarnMaster {
                         }
                     }
                 }
-                master.rmClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, "", "");
+                master.conclude();
             } catch (Throwable e) {
                 e.printStackTrace();
                 System.exit(102);
@@ -97,12 +106,12 @@ public class YarnMaster {
     final protected Properties appConfig;
     final private YarnConfiguration yarnConfig;
     final private String appName;
-    final private LinkedHashMap<YarnContainer, ContainerRequest> containersToAllocate = Maps.newLinkedHashMap();
+    final private LinkedHashMap<YarnContainerContext, ContainerRequest> containersToAllocate = Maps.newLinkedHashMap();
     final private AtomicInteger numTasks = new AtomicInteger(0);
     final private AtomicInteger numCompletedTasks = new AtomicInteger(0);
     final private AtomicBoolean killed = new AtomicBoolean(false);
-    final private Map<ContainerId, YarnContainer> runningContainers = Maps.newConcurrentMap();
-    final private Map<ContainerId, YarnContainer> completedContainers = Maps.newConcurrentMap();
+    final private Map<ContainerId, YarnContainerContext> runningContainers = Maps.newConcurrentMap();
+    final private Map<ContainerId, YarnContainerContext> completedContainers = Maps.newConcurrentMap();
     final private AMRMClientAsync.CallbackHandler listener = new AMRMClientAsync.CallbackHandler() {
         @Override
         public float getProgress() {
@@ -135,15 +144,15 @@ public class YarnMaster {
         final public void onContainersAllocated(List<Container> containers) {
             for (Container container : containers) {
                 try {
-                    Map.Entry<YarnContainer, ContainerRequest> selected = null;
+                    Map.Entry<YarnContainerContext, ContainerRequest> selected = null;
                     synchronized (containersToAllocate) {
-                        for (Map.Entry<YarnContainer, ContainerRequest> entry : containersToAllocate.entrySet()) {
-                            YarnContainer spec = entry.getKey();
+                        for (Map.Entry<YarnContainerContext, ContainerRequest> entry : containersToAllocate.entrySet()) {
+                            YarnContainerContext spec = entry.getKey();
                             if (spec.isSatisfiedBy(container)) {
                                 if (selected == null) {
                                     selected = entry;
                                 } else {
-                                    YarnContainer selectedSoFar = selected.getKey();
+                                    YarnContainerContext selectedSoFar = selected.getKey();
                                     if (selectedSoFar.capability.getMemory() > spec.capability.getMemory()
                                             || selectedSoFar.capability.getVirtualCores() >= spec.capability.getVirtualCores()
                                             || selectedSoFar.priority.getPriority() >= spec.priority.getPriority()) {
@@ -158,12 +167,13 @@ public class YarnMaster {
                         }
                     }
                     if (selected != null) {
-                        YarnContainer spec = selected.getKey();
+                        YarnContainerContext spec = selected.getKey();
                         log.info("Launching Container " + container.getNodeHttpAddress() + " " + container + " to " + spec.mainClass);
                         nmClient.startContainer(container, spec.createContainerLaunchContext());
                         spec.assignContainer(container);
                         log.info(spec.getLogsUrl());
                         runningContainers.put(container.getId(), spec);
+                        onContainerLaunched(container.getId().toString(), spec);
                         log.info("Number of running containers = " + runningContainers.size());
                     } else {
                         log.warn("Could not resolve allocated container with outstanding requested spec: " + container.getResource() + ", priority:" + container.getPriority());
@@ -184,7 +194,7 @@ public class YarnMaster {
         @Override
         final public void onContainersCompleted(List<ContainerStatus> statuses) {
             for (ContainerStatus status : statuses) {
-                YarnContainer completedSpec = runningContainers.remove(status.getContainerId());
+                YarnContainerContext completedSpec = runningContainers.remove(status.getContainerId());
                 if (completedSpec != null) {
                     log.info("Completed container " + status.getContainerId()
                             + ", (exit status " + status.getExitStatus() + ")  " + status.getDiagnostics());
@@ -207,6 +217,7 @@ public class YarnMaster {
             }
         }
     };
+
     private AMRMClientAsync<ContainerRequest> rmClient;
     private NMClient nmClient;
     private Boolean restartEnabled;
@@ -216,6 +227,8 @@ public class YarnMaster {
     final public int masterMemoryMb;
     final public int masterCores;
     final public int masterPriority;
+    final public boolean localMode;
+    private ExecutorService executor = null;
 
     /**
      * Default constructor can be used for local execution
@@ -223,36 +236,50 @@ public class YarnMaster {
     public YarnMaster(Properties appConfig) {
         this.appName = this.getClass().getName();
         this.appConfig = appConfig;
-        this.yarnConfig = new YarnConfiguration();
+        yarnConfig = new YarnConfiguration();
+        localMode = Boolean.valueOf(appConfig.getProperty("yarn1.local.mode", "false"));
         masterMemoryMb = Integer.valueOf(appConfig.getProperty("yarn1.master.memory.mb", String.valueOf(YarnMaster.DEFAULT_MASTER_MEMORY_MB)));
         masterCores = Integer.valueOf(appConfig.getProperty("yarn1.master.num.cores", String.valueOf(YarnMaster.DEFAULT_MASTER_CORES)));
-        masterPriority = Integer.valueOf(appConfig.getProperty("yarn1.master.priority", String.valueOf(YarnMaster.DEFAULT_MASTER_PRIORTY)));
-        if (appConfig.contains("yarn1.client.tracking.url")) {
+        masterPriority = Integer.valueOf(appConfig.getProperty("yarn1.master.priority", String.valueOf(YarnMaster.DEFAULT_MASTER_PRIORITY)));
+        if (appConfig.containsKey("yarn1.client.tracking.url")) {
             try {
-                trackingUrl = new URL(appConfig.getProperty("yarn1.client.trackingUrl"));
+                trackingUrl = new URL(appConfig.getProperty("yarn1.client.tracking.url"));
             } catch (MalformedURLException e) {
                 log.warn("Invalid client tracking url", e);
             }
         }
     }
 
-    private void initializeAsYarn() throws Exception {
+    private void initialize() throws Exception {
         this.restartEnabled = Boolean.valueOf(appConfig.getProperty("yarn1.restart.enabled", "false"));
         this.restartFailedRetries = Integer.valueOf(appConfig.getProperty("yarn1.restart.failed.retries", "5"));
-        this.appId = ApplicationId.newInstance(
-                Long.parseLong(appConfig.getProperty("am.timestamp")),
-                Integer.parseInt(appConfig.getProperty("am.id")));
-        log.info("APPLICATION ID: " + appId.toString());
-        rmClient = AMRMClientAsync.createAMRMClientAsync(100, listener);
-        rmClient.init(yarnConfig);
-        nmClient = NMClient.createNMClient();
-        nmClient.init(yarnConfig);
-        rmClient.start();
-        URL trackingUrl = getTrackingURL();
-        log.info("APPLICATION TRACKING URL: " + trackingUrl);
-        rmClient.registerApplicationMaster("", 0, trackingUrl == null ? null : trackingUrl.toString());
-        nmClient.start();
-        YarnClient.distributeResources(yarnConfig, appConfig, appName);
+        URL url = getTrackingURL();
+        if (localMode) {
+            executor = Executors.newCachedThreadPool();
+        } else {
+            this.appId = ApplicationId.newInstance(
+                    Long.parseLong(appConfig.getProperty("am.timestamp")),
+                    Integer.parseInt(appConfig.getProperty("am.id")));
+            log.info("APPLICATION ID: " + appId.toString());
+            rmClient = AMRMClientAsync.createAMRMClientAsync(100, listener);
+            rmClient.init(yarnConfig);
+            nmClient = NMClient.createNMClient();
+            nmClient.init(yarnConfig);
+            rmClient.start();
+
+            log.info("APPLICATION TRACKING URL: " + url);
+            rmClient.registerApplicationMaster("", 0, url == null ? null : url.toString());
+            nmClient.start();
+            YarnClient.distributeResources(yarnConfig, appConfig, appName);
+        }
+    }
+
+    private void conclude() throws IOException, YarnException {
+        if (localMode) {
+            executor.shutdownNow();
+        } else {
+            rmClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, "", "");
+        }
     }
 
     final protected java.net.URL getTrackingURL() {
@@ -274,6 +301,10 @@ public class YarnMaster {
         /** To be implemented by application... **/
     }
 
+    protected void onContainerLaunched(String containerId, YarnContainerContext spec) {
+        /** To be implemented by application... **/
+    }
+
     protected float getProgress() {
         /** To be overriden by application... - will be invoked at regular intervals**/
         if (numTasks.get() == 0) {
@@ -285,16 +316,6 @@ public class YarnMaster {
 
     protected void onCompletion() {
         /** To be implemented by application... **/
-    }
-
-
-    private void requestContainer(YarnContainer spec) {
-        ContainerRequest containerAsk = new ContainerRequest(spec.capability, null, null, spec.priority);
-        synchronized (containersToAllocate) {
-            containersToAllocate.put(spec, containerAsk);
-        }
-        rmClient.addContainerRequest(containerAsk);
-        numTasks.incrementAndGet();
     }
 
     final protected void requestContainerGroup(int numContainers, YarnContainerRequest spec) throws Exception {
@@ -310,8 +331,12 @@ public class YarnMaster {
             int totalContainerMemoryMb = spec.directMemMb + spec.heapMemMb;
             log.info("Requesting container (" + totalContainerMemoryMb + "Mb x " + spec.numCores + ")" + Arrays.asList(spec.args));
             String jvmArgs = "-XX:MaxDirectMemorySize=" + spec.directMemMb + "m -Xmx" + spec.heapMemMb + "m -Xms" + spec.heapMemMb + "m " + appConfig.getProperty("yarn1.jvm.args", "");
+            String[] args = new String[spec.args.length + 1];
+            args[0] = spec.mainClass.getName();
+            int i=0;
+            for(String specArg: spec.args) args[++i] = specArg;
             requestContainer(
-                    new YarnContainer(yarnConfig, appConfig, jvmArgs, spec.priority, totalContainerMemoryMb, spec.numCores, appName, spec.mainClass, spec.args)
+                    new YarnContainerContext(yarnConfig, appConfig, jvmArgs, spec.priority, totalContainerMemoryMb, spec.numCores, appName, YarnContainer.class, args)
             );
         }
         // wait for allocation before requesting other groups
@@ -322,11 +347,32 @@ public class YarnMaster {
         }
     }
 
-    public Map<ContainerId, YarnContainer> getRunningContainers() {
+    private void requestContainer(YarnContainerContext spec) {
+        if (localMode) {
+            try {
+                Runnable task = YarnContainer.prepareRunnable(appConfig, spec.args);
+                executor.submit(task);
+                onContainerLaunched(String.valueOf(task.hashCode()), spec);
+                numTasks.incrementAndGet();
+            } catch (Throwable e) {
+                log.error("Failed to launch local task thread", e);
+            }
+        } else {
+            ContainerRequest containerAsk = new ContainerRequest(spec.capability, null, null, spec.priority);
+            synchronized (containersToAllocate) {
+                containersToAllocate.put(spec, containerAsk);
+            }
+            rmClient.addContainerRequest(containerAsk);
+            numTasks.incrementAndGet();
+        }
+
+    }
+
+    public Map<ContainerId, YarnContainerContext> getRunningContainers() {
         return Collections.unmodifiableMap(runningContainers);
     }
 
-    public Map<ContainerId, YarnContainer> getCompletedContainers() {
+    public Map<ContainerId, YarnContainerContext> getCompletedContainers() {
         return Collections.unmodifiableMap(completedContainers);
     }
 

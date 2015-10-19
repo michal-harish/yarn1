@@ -122,6 +122,7 @@ yarn1.master.priority           | `0`           | Priority for the Application M
 yarn1.master.memory.mb          | `256`         | Memory in megabytes for the Application Master
 yarn1.master.num.cores          | `1`           | Number of virtual cores for the Application Master
 yarn1.master.jvm.args           | -             | Optional JVM arguments for the master. e.g. `-Xmx:512m`
+yarn1.local.mode                | `false`       | Debugging option - set tot `true` to run the master and all tasks in a local process executor
 
 <a name="operations">
 ## Operations
