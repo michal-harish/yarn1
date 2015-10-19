@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -35,6 +36,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class YarnMaster {
 
     private static final Logger log = LoggerFactory.getLogger(YarnMaster.class);
+
+    static final int DEFAULT_MASTER_MEMORY_MB = 256;
+    static final int DEFAULT_MASTER_CORES = 1;
+    static final int DEFAULT_MASTER_PRIORTY = 0;
 
     /**
      * Static Main method will be executed in the ApplicationMaster container as
@@ -207,6 +212,10 @@ public class YarnMaster {
     private Boolean restartEnabled;
     private Integer restartFailedRetries;
     private ApplicationId appId;
+    private URL trackingUrl = null;
+    final public int masterMemoryMb;
+    final public int masterCores;
+    final public int masterPriority;
 
     /**
      * Default constructor can be used for local execution
@@ -215,6 +224,16 @@ public class YarnMaster {
         this.appName = this.getClass().getName();
         this.appConfig = appConfig;
         this.yarnConfig = new YarnConfiguration();
+        masterMemoryMb = Integer.valueOf(appConfig.getProperty("yarn1.master.memory.mb", String.valueOf(YarnMaster.DEFAULT_MASTER_MEMORY_MB)));
+        masterCores = Integer.valueOf(appConfig.getProperty("yarn1.master.num.cores", String.valueOf(YarnMaster.DEFAULT_MASTER_CORES)));
+        masterPriority = Integer.valueOf(appConfig.getProperty("yarn1.master.priority", String.valueOf(YarnMaster.DEFAULT_MASTER_PRIORTY)));
+        if (appConfig.contains("yarn1.client.tracking.url")) {
+            try {
+                trackingUrl = new URL(appConfig.getProperty("yarn1.client.trackingUrl"));
+            } catch (MalformedURLException e) {
+                log.warn("Invalid client tracking url", e);
+            }
+        }
     }
 
     private void initializeAsYarn() throws Exception {
@@ -229,11 +248,15 @@ public class YarnMaster {
         nmClient = NMClient.createNMClient();
         nmClient.init(yarnConfig);
         rmClient.start();
-        URL trackingUrl = getTrackingURL(null, 0);
+        URL trackingUrl = getTrackingURL();
         log.info("APPLICATION TRACKING URL: " + trackingUrl);
         rmClient.registerApplicationMaster("", 0, trackingUrl == null ? null : trackingUrl.toString());
         nmClient.start();
         YarnClient.distributeResources(yarnConfig, appConfig, appName);
+    }
+
+    final protected java.net.URL getTrackingURL() {
+        return (trackingUrl != null) ? trackingUrl : provideTrackingURL(null, 0);
     }
 
     /**
@@ -242,7 +265,7 @@ public class YarnMaster {
      * @param prefPort preferred port, if -1 or 0 then the choice is down to the implementation
      * @return
      */
-    protected java.net.URL getTrackingURL(String prefHost, int prefPort) {
+    protected java.net.URL provideTrackingURL(String prefHost, int prefPort) {
         /** To be implemented by application... **/
         return null;
     }

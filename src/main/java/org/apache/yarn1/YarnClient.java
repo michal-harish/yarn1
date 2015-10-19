@@ -69,9 +69,9 @@ public class YarnClient {
         appConfig.setProperty("yarn1.master.class", appClass.getName());
         String appName = appClass.getName();
         String queue = appConfig.getProperty("yarn1.queue");
-        int masterPriority = Integer.valueOf(appConfig.getProperty("yarn1.master.priority", "0"));
-        int masterMemoryMb = Integer.valueOf(appConfig.getProperty("yarn1.master.memory.mb", "256"));
-        int masterNumCores = Integer.valueOf(appConfig.getProperty("yarn1.master.num.cores", "1"));
+        int masterPriority = Integer.valueOf(appConfig.getProperty("yarn1.master.priority", String.valueOf(YarnMaster.DEFAULT_MASTER_PRIORTY)));
+        int masterMemoryMb = Integer.valueOf(appConfig.getProperty("yarn1.master.memory.mb", String.valueOf(YarnMaster.DEFAULT_MASTER_MEMORY_MB)));
+        int masterNumCores = Integer.valueOf(appConfig.getProperty("yarn1.master.num.cores", String.valueOf(YarnMaster.DEFAULT_MASTER_CORES)));
 
         Configuration yarnConfig = new YarnConfiguration();
         yarnConfig.addResource(new FileInputStream(yarnConfigPath + "/core-site.xml"));
