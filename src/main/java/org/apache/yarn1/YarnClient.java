@@ -55,7 +55,7 @@ public class YarnClient {
      */
     public static void submitApplicationMaster(
             Properties appConfig,
-            Class<? extends YarnMaster> appClass,
+            Class<? extends YarnMaster> masterClass,
             String[] args,
             Boolean awaitCompletion
     ) throws Exception {
@@ -64,19 +64,20 @@ public class YarnClient {
             log.info(param.toString() + " = " + appConfig.get(param).toString());
         }
         String yarnConfigPath = appConfig.getProperty("yarn1.site", "/etc/hadoop");
-        appConfig.setProperty("yarn1.master.class", appClass.getName());
-        log.info("------------------------");
+        String masterClassName = masterClass.getName();
+        appConfig.setProperty("yarn1.master.class", masterClassName);
+        String applicationName = appConfig.getProperty("yarn1.application.name", masterClassName);
+        log.info("--------------------------------------------------------------");
 
         if (Boolean.valueOf(appConfig.getProperty("yarn1.local.mode","false"))) {
             YarnMaster.run(appConfig, args);
             return;
         }
 
-        String appName = appClass.getName();
-        String queue = appConfig.getProperty("yarn1.queue");
         int masterPriority = Integer.valueOf(appConfig.getProperty("yarn1.master.priority", String.valueOf(YarnMaster.DEFAULT_MASTER_PRIORITY)));
         int masterMemoryMb = Integer.valueOf(appConfig.getProperty("yarn1.master.memory.mb", String.valueOf(YarnMaster.DEFAULT_MASTER_MEMORY_MB)));
         int masterNumCores = Integer.valueOf(appConfig.getProperty("yarn1.master.num.cores", String.valueOf(YarnMaster.DEFAULT_MASTER_CORES)));
+        String queue = appConfig.getProperty("yarn1.queue");
 
         Configuration yarnConfig = new YarnConfiguration();
         yarnConfig.addResource(new FileInputStream(yarnConfigPath + "/core-site.xml"));
@@ -94,7 +95,7 @@ public class YarnClient {
             log.debug("Node report:" + report.getNodeId() + " @ " + report.getHttpAddress() + " | " + report.getCapability());
         }
 
-        log.info("Submitting application master class " + appClass.getName());
+        log.info("Submitting application master class " + masterClassName);
 
         YarnClientApplication app = yarnClient.createApplication();
         GetNewApplicationResponse appResponse = app.getNewApplicationResponse();
@@ -106,14 +107,14 @@ public class YarnClient {
             appConfig.setProperty("am.id", String.valueOf(appId.getId()));
         }
 
-        YarnClient.distributeResources(yarnConfig, appConfig, appName);
+        YarnClient.distributeResources(yarnConfig, appConfig, applicationName);
 
         String masterJvmArgs = appConfig.getProperty("yarn1.master.jvm.args", "");
         YarnContainerContext masterContainer = new YarnContainerContext(
-                yarnConfig, appConfig, masterJvmArgs, masterPriority, masterMemoryMb, masterNumCores, appName, YarnMaster.class, args);
+                yarnConfig, appConfig, masterJvmArgs, masterPriority, masterMemoryMb, masterNumCores, applicationName, YarnMaster.class, args);
 
         ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
-        appContext.setApplicationName(appName);
+        appContext.setApplicationName(masterClassName);
         appContext.setResource(masterContainer.capability);
         appContext.setPriority(masterContainer.priority);
         appContext.setQueue(queue);

@@ -60,7 +60,7 @@ public class YarnContainerContext {
     public YarnContainerContext(
             Configuration yarnConfig, Properties appConfig,
             String jvmArgs,
-            int priority, int memoryMb, int numCores, String appName, Class<?> mainClass, String[] args
+            int priority, int memoryMb, int numCores, String applicationName, Class<?> mainClass, String[] args
     ) throws Exception {
         this.appConfig = appConfig;
         this.yarnConfig = yarnConfig;
@@ -68,7 +68,7 @@ public class YarnContainerContext {
         this.yarnConfig.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
         this.yarnConfig.set("fs.file.impl", org.apache.hadoop.fs.LocalFileSystem.class.getName());
 
-        this.jarName = appName + ".jar";
+        this.jarName = applicationName + ".jar";
         this.mainClass = mainClass;
         this.mainClassName = mainClass.getName().replace("$", "");
         this.capability = Resource.newInstance(memoryMb, numCores);

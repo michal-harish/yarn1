@@ -62,9 +62,9 @@ public class YarnMaster {
             for (Object param : config.keySet()) {
                 log.info(param.toString() + " = " + config.get(param).toString());
             }
-            Class<? extends YarnMaster> appClass = Class.forName(config.getProperty("yarn1.master.class")).asSubclass(YarnMaster.class);
-            log.info("Starting Master Instance: " + appClass.getName());
-            Constructor<? extends YarnMaster> constructor = appClass.getConstructor(Properties.class);
+            Class<? extends YarnMaster> masterClass = Class.forName(config.getProperty("yarn1.master.class")).asSubclass(YarnMaster.class);
+            log.info("Starting Master Instance: " + masterClass.getName());
+            Constructor<? extends YarnMaster> constructor = masterClass.getConstructor(Properties.class);
             YarnMaster master = null;
             try {
                 master = constructor.newInstance(config);
@@ -105,7 +105,8 @@ public class YarnMaster {
 
     final protected Properties appConfig;
     final private YarnConfiguration yarnConfig;
-    final private String appName;
+    final private String applicationName;
+    final private String masterClassName;
     final private LinkedHashMap<YarnContainerContext, ContainerRequest> containersToAllocate = Maps.newLinkedHashMap();
     final private AtomicInteger numTasks = new AtomicInteger(0);
     final private AtomicInteger numCompletedTasks = new AtomicInteger(0);
@@ -234,8 +235,9 @@ public class YarnMaster {
      * Default constructor can be used for local execution
      */
     public YarnMaster(Properties appConfig) {
-        this.appName = this.getClass().getName();
         this.appConfig = appConfig;
+        this.masterClassName = this.getClass().getName();
+        this.applicationName = appConfig.getProperty("yarn1.application.name", masterClassName);
         yarnConfig = new YarnConfiguration();
         localMode = Boolean.valueOf(appConfig.getProperty("yarn1.local.mode", "false"));
         masterMemoryMb = Integer.valueOf(appConfig.getProperty("yarn1.master.memory.mb", String.valueOf(YarnMaster.DEFAULT_MASTER_MEMORY_MB)));
@@ -270,7 +272,7 @@ public class YarnMaster {
             log.info("APPLICATION TRACKING URL: " + url);
             rmClient.registerApplicationMaster("", 0, url == null ? null : url.toString());
             nmClient.start();
-            YarnClient.distributeResources(yarnConfig, appConfig, appName);
+            YarnClient.distributeResources(yarnConfig, appConfig, applicationName);
         }
     }
 
@@ -336,7 +338,7 @@ public class YarnMaster {
             int i=0;
             for(String specArg: spec.args) args[++i] = specArg;
             requestContainer(
-                    new YarnContainerContext(yarnConfig, appConfig, jvmArgs, spec.priority, totalContainerMemoryMb, spec.numCores, appName, YarnContainer.class, args)
+                    new YarnContainerContext(yarnConfig, appConfig, jvmArgs, spec.priority, totalContainerMemoryMb, spec.numCores, applicationName, YarnContainer.class, args)
             );
         }
         // wait for allocation before requesting other groups

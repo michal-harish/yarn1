@@ -107,22 +107,23 @@ One option is to simply copy the yarn1 classes and dependencies into your projec
 ## Configuration
 </a>
 
-parameter                       | default       | description
---------------------------------|---------------|---------------------------------------------------------------------------
-**yarn1.site**                  | `/etc/hadoop` | Local path where the application is launched pointing to yarn (and hdfs-hadoop configuration) files. This path should contain at least these files: `yarn-site.xml`, `hdfs-site.xml`, `core-site.xml`
-**yarn1.restart.enabled**       | `false`       | If set to `true` any completed or failed containers will be automatically restarted.
-**yarn1.restart.failed.retries**| 5             | If restart.enabled is `true` any container that completes with non-zero exit status more than `failed.retries` time will cause the entire application to fail
-yarn1.application.type          | `YARN`        | Application type to be registered with the Resource Manager
-yarn1.client.tracking.url       | -             | Optional tracking url that is available on the client machine, i.e. not on Yarn AM but running locally prior to submission of the job 
-yarn1.classpath                 | -             | Optional colon-separated list of extra jars and paths available on YARN nodes locally for all containers and application master $CLASSPATH. This allows for large dependency libraries to be declared in scope `provided` and will not be distributed as part of container main jar, e.g. `opt/scala/scala-library-2.10.4.jar:/opt/scala/kafka_2.10-0.8.2.1.jar`.
-yarn1.jvm.args                  | -             | Extra JVM arguments besides the main memory which is managed under the hood as calculated from direct+heap memory as given in each container request, , e.g. `-XX:+UseSerialGC -XX:NewRatio=3`
-yarn1.queue                     | -             | YARN scheduling queue name for master as well as containers
-yarn1.env.<VARIABLE>            | -             | Optional Environment Variable(s) for each task
-yarn1.master.priority           | `0`           | Priority for the Application Master (`0-10`)
-yarn1.master.memory.mb          | `256`         | Memory in megabytes for the Application Master
-yarn1.master.num.cores          | `1`           | Number of virtual cores for the Application Master
-yarn1.master.jvm.args           | -             | Optional JVM arguments for the master. e.g. `-Xmx:512m`
-yarn1.local.mode                | `false`       | Debugging option - set tot `true` to run the master and all tasks in a local process executor
+parameter                       | default        | description
+--------------------------------|----------------|---------------------------------------------------------------------------
+**yarn1.site**                  | `/etc/hadoop`  | Local path where the application is launched pointing to yarn (and hdfs-hadoop configuration) files. This path should contain at least these files: `yarn-site.xml`, `hdfs-site.xml`, `core-site.xml`
+**yarn1.restart.enabled**       | `false`        | If set to `true` any completed or failed containers will be automatically restarted.
+**yarn1.restart.failed.retries**| 5              | If restart.enabled is `true` any container that completes with non-zero exit status more than `failed.retries` time will cause the entire application to fail
+yarn1.application.name          | <master-class> | If multiple components are part of the same application, this name groups them together in one jar
+yarn1.application.type          | `DONUT`        | Application type to be registered with the Resource Manager
+yarn1.client.tracking.url       | -              | Optional tracking url that is available on the client machine, i.e. not on Yarn AM but running locally prior to submission of the job 
+yarn1.classpath                 | -              | Optional colon-separated list of extra jars and paths available on YARN nodes locally for all containers and application master $CLASSPATH. This allows for large dependency libraries to be declared in scope `provided` and will not be distributed as part of container main jar, e.g. `opt/scala/scala-library-2.10.4.jar:/opt/scala/kafka_2.10-0.8.2.1.jar`.
+yarn1.jvm.args                  | -              | Extra JVM arguments besides the main memory which is managed under the hood as calculated from direct+heap memory as given in each container request, , e.g. `-XX:+UseSerialGC -XX:NewRatio=3`
+yarn1.queue                     | -              | YARN scheduling queue name for master as well as containers
+yarn1.env.<VARIABLE>            | -              | Optional Environment Variable(s) for each task
+yarn1.master.priority           | `0`            | Priority for the Application Master (`0-10`)
+yarn1.master.memory.mb          | `256`          | Memory in megabytes for the Application Master
+yarn1.master.num.cores          | `1`            | Number of virtual cores for the Application Master
+yarn1.master.jvm.args           | -              | Optional JVM arguments for the master. e.g. `-Xmx:512m`
+yarn1.local.mode                | `false`        | Debugging option - set tot `true` to run the master and all tasks in a local process executor
 
 <a name="operations">
 ## Operations
@@ -137,7 +138,6 @@ WITH SINGLE-NODE LOCAL YARN CLUSTER
 <a name="development">
 ## Development
 </a>
-- distributing jar uses main class name on the target so the identical jar will be copied multiple times when several components are launched 
 - hdfs could be completely avoided - also hdfs.homeDirectory() of the current user is used right now
 - use standard HADOOP_YARN_HOME environmental variable instead of combination of args and yarn1.site config
 - YARN deployment requires 'mvn' command for unpacking of compile scope dependencies and 'jar' command for creating the main jar 
