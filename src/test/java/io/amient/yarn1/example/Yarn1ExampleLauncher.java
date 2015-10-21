@@ -1,4 +1,4 @@
-package org.apache.yarn1;
+package io.amient.yarn1.example;
 
 /**
  * Yarn1 - Java Library for Apache YARN
@@ -17,20 +17,8 @@ package org.apache.yarn1;
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-public class YarnContainerRequest {
-    public final Class<?> mainClass;
-    public final String[] args;
-    public final int priority;
-    public final int directMemMb;
-    public final int numCores;
-    public final int heapMemMb;
-
-    public YarnContainerRequest(Class<?> mainClass, String[] args, int priority, int directMemoryMb, int heapMemoryMb, int numCores) {
-        this.mainClass = mainClass;
-        this.args = args;
-        this.priority = priority;
-        this.directMemMb = directMemoryMb;
-        this.heapMemMb = heapMemoryMb;
-        this.numCores = numCores;
+public class Yarn1ExampleLauncher {
+    public static void main(String[] args) throws Exception {
+        HelloYarn1Master.main(args);
     }
 }

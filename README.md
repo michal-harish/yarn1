@@ -25,7 +25,7 @@ This is a YARN helper for submitting master and requesting containers by simply 
 ## Quick start with included example application
 </a>
 
-This is in package `org.apache.yarn1.example`
+This is in package `io.amient.yarn1.example`
 
 ### Running as `yarn` program
 1. `mvn clean package`

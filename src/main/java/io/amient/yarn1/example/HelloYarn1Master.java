@@ -1,8 +1,8 @@
-package org.apache.yarn1.example;
+package io.amient.yarn1.example;
 
-import org.apache.yarn1.YarnClient;
-import org.apache.yarn1.YarnContainerRequest;
-import org.apache.yarn1.YarnMaster;
+import io.amient.yarn1.YarnContainerRequest;
+import io.amient.yarn1.YarnClient;
+import io.amient.yarn1.YarnMaster;
 
 import java.io.FileNotFoundException;
 import java.util.Properties;

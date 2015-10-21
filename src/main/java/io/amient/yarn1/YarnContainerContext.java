@@ -1,4 +1,4 @@
-package org.apache.yarn1;
+package io.amient.yarn1;
 
 /**
  * Yarn1 - Java Library for Apache YARN

@@ -1,4 +1,4 @@
-package org.apache.yarn1.example;
+package io.amient.yarn1.example;
 
 public class HelloYarn1WorkerB {
 

@@ -1,4 +1,4 @@
-package org.apache.yarn1;
+package io.amient.yarn1;
 
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
