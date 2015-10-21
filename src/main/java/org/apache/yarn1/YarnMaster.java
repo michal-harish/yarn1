@@ -214,6 +214,7 @@ public class YarnMaster {
                         }
                     }
                     numCompletedTasks.incrementAndGet();
+                    onContainerCompleted(status.getContainerId().toString(), completedSpec, status.getExitStatus());
                 }
             }
         }
@@ -314,6 +315,10 @@ public class YarnMaster {
         } else {
             return ((float) (numCompletedTasks.get())) / ((float) numTasks.get());
         }
+    }
+
+    protected void onContainerCompleted(String containerId, YarnContainerContext spec, int exitStatus) {
+        /** To be implemented by application... **/
     }
 
     protected void onCompletion() {
