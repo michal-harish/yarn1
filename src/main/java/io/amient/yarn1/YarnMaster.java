@@ -257,6 +257,7 @@ public class YarnMaster {
         this.restartEnabled = Boolean.valueOf(appConfig.getProperty("yarn1.restart.enabled", "false"));
         this.restartFailedRetries = Integer.valueOf(appConfig.getProperty("yarn1.restart.failed.retries", "5"));
         URL url = getTrackingURL();
+        log.info("APPLICATION TRACKING URL: " + url);
         if (localMode) {
             executor = Executors.newCachedThreadPool();
         } else {
@@ -270,7 +271,6 @@ public class YarnMaster {
             nmClient.init(yarnConfig);
             rmClient.start();
 
-            log.info("APPLICATION TRACKING URL: " + url);
             rmClient.registerApplicationMaster("", 0, url == null ? null : url.toString());
             nmClient.start();
             YarnClient.distributeResources(yarnConfig, appConfig, applicationName);
